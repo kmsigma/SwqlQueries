@@ -1,8 +1,5 @@
 <#
-------------------------------------------------------------------------------------------------------
 File Name:   Export-AtlasMapFiles.ps1
-Author:      Kevin M.  Sparenberg (https://thwack.solarwinds.com/people/KMSigma)
-------------------------------------------------------------------------------------------------------
 Purpose:
   This script will export the Network Atlas Maps (and associated files) from an active Orion System.  By default this script will export ALL maps and associated files  (including images).  To change it to only export hte AtlasMap files comment out or remove the "Exports only the Maps" region.
   Export Path is to the current user's desktop.  This can be modified within the "Setup Variables & Connect to the SolarWinds Information Service (SWIS)" region.
@@ -30,7 +27,6 @@ Tested against:
   UDT 3.2.2
   IVIM 2.1.0
   VNQM 4.2.2
-------------------------------------------------------------------------------------------------------
 #>
 # Set up the hostname, username, and password for the source system
 if ( -not ( SwisConnection ) )
@@ -72,7 +68,7 @@ $TotalMapFiles = $AtlasMapFiles.Count
 #region Check for Path Existence.  If the path doesn't exist, then it's created.
 if ( -not ( Test-Path -Path $ExportPath -ErrorAction SilentlyContinue ) )
 {
-    Write-Host "Path: '$ExportPath' does not  exist.`nCreating Export  Folder..." -ForegroundColor Yellow
+    Write-Host "Path: '$ExportPath' does not  exist.`nCreating Export Folder..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $ExportPath | Out-Null
 }
 #endregion
@@ -87,7 +83,7 @@ For ( $i = 0; $i -lt $TotalMapFiles; $i++ )
     $ExportDirectory = Split-Path -Path $ExportFullPath -Parent
     if ( -not ( Test-Path -Path $ExportDirectory -ErrorAction SilentlyContinue ) )
     {
-        Write-Warning "Creating [$( $ExportDirectory )] Folder"
+        Write-Warning "`tCreating [$( $ExportDirectory )] Folder"
         New-Item -Path $ExportDirectory -ItemType Directory | Out-Null
     }
     #endregion
