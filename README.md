@@ -1,5 +1,5 @@
 # SolarWinds Query Language (SWQL) Query Playground
-## This is a public repository for some of my SWQL queries.
+## This is a public repository for some of my PowerShell scripts and the associated SWQL queries.
 
 **None of these queries are directly supported my myself nor SolarWinds.  Use them at your own risk.**
 
