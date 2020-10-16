@@ -3,6 +3,8 @@ File: Update-Captions.ps1
 Purpose: The is a quick script that I wrote to update Node Captions within Orion.  It currently is set to remove any domain names (keeping only the hostname)
          and capitalize those captions.
 
+Futures: I'd like to convert this to a more well-rounded function instead of a stand alone script, but I need help in understanding what parameters should be included.
+
 Version History: 1.0 - first upload
 
 GENERAL DISCLAIMER:
