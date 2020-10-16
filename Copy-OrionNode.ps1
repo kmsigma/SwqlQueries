@@ -108,7 +108,7 @@ ORDER BY Caption
 $SwqlPollers = @"
 SELECT PollerType
 FROM Orion.Pollers
-WHERE NetObject = @NetObject"
+WHERE NetObject = @NetObject
 "@
 
 $SwqlInterfaceUrisByNode = @"
