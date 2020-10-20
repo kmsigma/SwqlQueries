@@ -1,0 +1,120 @@
+-- Tested on Orion Platform 2020.2.1 with NPM and IPAM minimum
+-- Place a Custom Query Widget on a Node Details page and paste in the below.
+-- I'm crediting this submission to Marc Netterfield (Mesverrum) [https://github.com/Mesverrum] because I'm 93.87% sure that he was the original author.
+
+
+SELECT -- Node Details
+       '' AS [ ]
+     , CONCAT([Nodes].NodeID,' ',1) AS [_LinkFor_ ]
+     , 'Node' AS ObjectType
+     , [Nodes].Caption AS Object
+     , [Nodes].DetailsUrl AS [_LinkFor_Object]
+     , [Status].StatusName AS Status
+     , CONCAT('/Orion/images/StatusIcons/Small-', [Nodes].StatusIcon) AS [_IconFor_Status]
+     , ToLocal([Nodes].LastSync) AS [Last Polled]
+     , CONCAT([Nodes].Vendor, ' - ', [Nodes].MachineType) AS ExtraInfo
+FROM Orion.Nodes AS [Nodes]
+JOIN Orion.StatusInfo AS [Status]
+  ON [Status].StatusID = [Nodes].Status
+WHERE [Nodes].NodeID = ${NodeID}
+
+UNION (
+SELECT -- IPAM addresses
+       '' AS [ ]
+     , CONCAT([Nodes].NodeID, ' ', 2) AS [_LinkFor_ ]
+     , CONCAT('IPAM ', [IP].IPType, ' Address') AS ObjectType
+     , IsNull([IP].IPAddress ,'Not in IPAM') AS Object
+     , [IP].DetailsUrl AS [_LinkFor_Object]
+     , [IP].IPStatus AS Status
+     , IsNull(('/Orion/IPAM/res/images/sw/icon.ip.'+ [IP].IPStatus +'.gif'),'/Orion/images/StatusIcons/Small-Down.gif') AS [_IconFor_Status]
+     , [IP].LastSync AS LastScanned
+     , CONCAT(ip.Comments, '') AS ExtraInfo
+FROM Orion.Nodes AS [Nodes]
+LEFT JOIN IPAM.IPNodeReport AS [IP]
+  ON [Nodes].IP = [IP].IPAddress
+WHERE [Nodes].NodeID = ${NodeID}
+)
+UNION (
+SELECT --DHCP
+       '' AS [ ]
+     , CONCAT([Nodes].NodeID, ' ', 3) AS [_LinkFor_ ]
+     , 'DHCP' AS ObjectType
+     , IsNull([Lease].ClientName, 'Not in Monitored DHCP') AS Object
+     , [IP].DetailsUrl AS [_LinkFor_Object]
+     , [IP].IPStatus AS Status
+     , IsNull( ('/Orion/IPAM/res/images/sw/icon.[IP].' + [IP].IPStatus + '.gif'), '/Orion/images/StatusIcons/Small-Down.gif') AS [_IconFor_Status]
+     , [IP].LastSync AS LastScanned
+     , CASE
+         WHEN [Lease].ReservationType IS NOT NULL THEN CONCAT('Reservation ', [Lease].ClientMAC)
+         ELSE ''
+       END AS ExtraInfo
+FROM Orion.Nodes AS [Nodes]
+JOIN IPAM.IPNodeReport AS [IP]
+  ON [Nodes].IP = [IP].IPAddress
+  AND [Nodes].NodeID = ${NodeID}
+LEFT JOIN IPAM.DhcpLease AS [Lease]
+  ON [Lease].ClientIpAddress = [IP].IPAddress
+WHERE [IP].IPType = 'Dynamic'
+  AND [Nodes].NodeID = ${NodeID}
+)
+UNION (
+SELECT DISTINCT -- DNS Information
+       '' AS [ ]
+     , CONCAT([Nodes].nodeid,' ',4) AS [_LinkFor_ ]
+     , 'DNS Host Record' AS ObjectType
+     , IsNull([DNS].data, 'Not in Monitored DNS') AS Object
+     , [IP].DetailsUrl AS [_LinkFor_Object]
+     , CASE
+         WHEN [DNS].name IS NULL THEN ''
+         WHEN [DNS].name LIKE '%' + [Nodes].Caption + '%' THEN 'Matched'
+         ELSE 'Possible DNS Mismatch'
+       END AS Status
+     , CASE
+         WHEN [DNS].name IS NULL THEN ''
+         WHEN [DNS].name LIKE '%' + [Nodes].Caption + '%' THEN '/Orion/images/ActiveAlerts/Check.png'
+         ELSE '/Orion/images/ActiveAlerts/Serious.png'
+       END AS [_IconFor_Status]
+     , [DS].LastDiscovery AS LastScanned
+     , CASE
+         WHEN [DNS].name IS NOT NULL THEN CONCAT('Record ', [DNS].name, ' in zone ', [DZ].Name)
+         ELSE ''
+       END AS ExtraInfo
+FROM Orion.Nodes AS [Nodes]
+JOIN IPAM.IPNodeReport AS [IP]
+  ON [Nodes].IP = [IP].IPAddress
+ AND [Nodes].NodeID = ${NodeID}
+LEFT JOIN IPAM.DnsRecordReport AS [DNS]
+  ON [DNS].Data = [IP].IPAddress
+ AND [DNS].type IN (1) -- DNS A Record
+LEFT JOIN IPAM.DnsZone AS [DZ]
+  ON [DZ].DnsZoneId = [DNS].DnsZoneId
+LEFT JOIN ( SELECT TOP 1 [DS].NodeId
+                       , MAX([DS].LastDiscovery) AS LastDiscovery
+            FROM IPAM.DnsServer AS [DS]
+			GROUP BY [DS].NodeID
+			ORDER BY MAX([DS].LastDiscovery) DESC ) AS [DS]
+  ON [DS].NodeID = [DZ].NodeID
+WHERE [Nodes].NodeID = ${NodeID} AND [DS].LastDiscovery IS NOT NULL
+)
+UNION (
+SELECT -- DHCP/Subnet Information
+       '' AS [ ]
+     , CONCAT([Nodes].NodeID, ' ', 5) AS [_LinkFor_ ]
+     , 'IPAM ' + ISNULL([Subnet].GroupTypeText, '') + ' Group' AS ObjectType
+     , IsNull([Subnet].FriendlyName,'Not in IPAM') AS Object
+     , [Subnet].DetailsUrl AS [_LinkFor_Object]
+     , [Subnet].StatusShortDescription AS Status
+     , '/Orion/IPAM/res/images/sw/icon.subnet.' + [Subnet].StatusShortDescription + '.gif' AS [_IconFor_Status]
+     , [Subnet].LastDiscovery AS LastScanned
+     , CASE
+         WHEN [Subnet].FriendlyName IS NULL THEN ''
+         ELSE CONCAT([Subnet].UsedCount, '/', [Subnet].AllocSize, ' used| VLAN ', IsNull([Subnet].VLAN, 'Unknown') , '| Comment: ', [Subnet].Comments )
+       END AS ExtraInfo
+FROM Orion.Nodes AS [Nodes]
+JOIN IPAM.IPNodeReport AS [IP]
+  ON [Nodes].ip = [IP].IPAddress
+LEFT JOIN IPAM.GroupReport AS [Subnet]
+  ON [Subnet].GroupId = [IP].SubnetID
+WHERE [Nodes].NodeID = ${NodeID}
+)
+ORDER BY [_LinkFor_ ]
