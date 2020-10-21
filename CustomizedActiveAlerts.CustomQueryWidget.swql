@@ -1,3 +1,9 @@
+-- Tested on Orion Platform 2020.2.1 and 2019.4 HF5
+-- With input from Marc Netterfield (Mesverrum) [https://github.com/Mesverrum] and Holger Mundt
+--
+--
+--
+--
 SELECT DISTINCT [ActiveAlerts].TriggeredMessage AS [Alert]
 	,CASE [ActiveAlerts].AlertObjects.AlertConfigurations.Severity
 		WHEN 0
@@ -20,10 +26,19 @@ SELECT DISTINCT [ActiveAlerts].TriggeredMessage AS [Alert]
 	--   Here we are chaining base table (ActiveAlerts) to the AlertObjects and selecting additional fields there
 	,[ActiveAlerts].AlertObjects.TriggeredCount AS [Count]
 	,[ActiveAlerts].TriggeredDateTime AS [Date/Time]
+	,CASE 
+		WHEN FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 86400) > 0
+			THEN TOSTRING(TOSTRING(FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 86400)) + 'd ' + TOSTRING(FLOOR(((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) - 86400 * (FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 86400))) + 0.0) / 3600)) + 'h ' + TOSTRING(FLOOR(((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) - 3600 * (FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 3600))) + 0.0) / 60)) + 'm ')
+		WHEN FLOOR(((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) - 86400 * (FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 86400))) + 0.0) / 3600) > 0
+			THEN TOSTRING(TOSTRING(FLOOR(((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) - 86400 * (FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 86400))) + 0.0) / 3600)) + 'h ' + TOSTRING(FLOOR(((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) - 3600 * (FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 3600))) + 0.0) / 60)) + 'm ')
+		WHEN FLOOR(((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) - 3600 * (FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 3600))) + 0.0) / 60) > 0
+			THEN TOSTRING(TOSTRING(FLOOR(((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) - 3600 * (FLOOR((SECONDDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) + 0.0) / 3600))) + 0.0) / 60)) + 'm ')
+		ELSE ''
+		END AS [Time Active]
 	,[ActiveAlerts].AlertObjects.AlertNote AS [Alert Note]
-    ,CASE
-        WHEN [ActiveAlerts].Acknowledged IS NULL
-			THEN 'Unacknowledged'
+	,CASE 
+		WHEN [ActiveAlerts].Acknowledged IS NULL
+			THEN '[Acknowledge Now]'
 		ELSE CONCAT (
 				'By: '
 				,[ActiveAlerts].AcknowledgedBy
@@ -38,6 +53,17 @@ SELECT DISTINCT [ActiveAlerts].TriggeredMessage AS [Alert]
 			THEN '/Orion/images/StatusIcons/Small-EmptyIcon.gif'
 		ELSE '/Orion/images/ActiveAlerts/Acknowliedged_icon16x16v1.png'
 		END AS [_IconFor_Ack. Details]
+	,CASE 
+		WHEN [ActiveAlerts].Acknowledged IS NULL
+			THEN CONCAT (
+					'/Orion/Netperfmon/AckAlert.aspx?AlertDefID='
+					,[ActiveAlerts].AlertObjectID
+					)
+		ELSE CONCAT (
+				'/Orion/NetPerfMon/ActiveAlertDetails.aspx?NetObject=AAT:'
+				,[ActiveAlerts].AlertObjectID
+				)
+		END AS [_LinkFor_Ack. Details]
 	,[ActiveAlerts].AlertObjects.EntityCaption AS [Object]
 	,[ActiveAlerts].AlertObjects.EntityDetailsUrl AS [_LinkFor_Object]
 	-- This part is some magical mystery as far as I'm concerned.  I looked at the icons on the actual All Active Alerts page and looked at how the URL was formatted
@@ -52,6 +78,30 @@ SELECT DISTINCT [ActiveAlerts].TriggeredMessage AS [Alert]
 		,'&size=small&timestamp='
 		,SecondDiff('01/01/1970', [ActiveAlerts].TriggeredDateTime)
 		) AS [_IconFor_Object]
+	-- Bring in the related node if it exists
+	,CASE 
+		WHEN [ActiveAlerts].AlertObjects.RelatedNodeUri <> [ActiveAlerts].AlertObjects.EntityUri
+			THEN [ActiveAlerts].AlertObjects.RelatedNodeCaption
+		ELSE NULL
+		END AS [On Node]
+	,CASE 
+		WHEN [ActiveAlerts].AlertObjects.RelatedNodeUri <> [ActiveAlerts].AlertObjects.EntityUri
+			THEN [ActiveAlerts].AlertObjects.RelatedNodeDetailsUrl
+		ELSE NULL
+		END AS [_LinkFor_On Node]
+	,CASE 
+		WHEN [ActiveAlerts].AlertObjects.RelatedNodeUri <> [ActiveAlerts].AlertObjects.EntityUri
+			THEN CONCAT (
+					'/Orion/StatusIcon.ashx?entity='
+					,'Orion.Nodes'
+					,'&EntityUri='
+					,[ActiveAlerts].AlertObjects.RelatedNodeUri
+					,'&size=small&timestamp='
+					,SecondDiff('01/01/1970', [ActiveAlerts].TriggeredDateTime)
+					)
+		ELSE '/Orion/images/StatusIcons/Small-EmptyIcon.gif'
+		END AS [_IconFor_On Node]
+	,(FLOOR(MINUTEDIFF([ActiveAlerts].TriggeredDateTime, GETUTCDATE()) / 60.0)) AS [Active Hours]
 FROM Orion.AlertActive AS [ActiveAlerts]
 -- We are also chaining here to get the AlertHistory event type /though/ the first chain of AlertObjects
 --  The logic is this: "[ActiveAlerts].AlertObjects.AlertHistory.<Field Name>"
