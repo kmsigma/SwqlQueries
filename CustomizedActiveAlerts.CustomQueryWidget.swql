@@ -1,0 +1,60 @@
+SELECT DISTINCT [ActiveAlerts].TriggeredMessage AS [Alert]
+	,CASE [ActiveAlerts].AlertObjects.AlertConfigurations.Severity
+		WHEN 0
+			THEN '/Orion/images/ActiveAlerts/InformationalAlert.png'
+		WHEN 1
+			THEN '/Orion/images/ActiveAlerts/Warning.png'
+		WHEN 2
+			THEN '/Orion/images/ActiveAlerts/Critical.png'
+		WHEN 3
+			THEN '/Orion/images/ActiveAlerts/Serious.png'
+		WHEN 4
+			THEN '/Orion/images/ActiveAlerts/Notice.png'
+		ELSE '/Orion/images/StatusIcons/EmptyIcon.gif' -- we should never get here
+		END AS [_IconFor_Alert]
+	,CONCAT (
+		'/Orion/NetPerfMon/ActiveAlertDetails.aspx?NetObject=AAT:'
+		,[ActiveAlerts].AlertObjectID
+		) AS [_LinkFor_Alert]
+	-- We can connect to related tables by referencing them.  Linked tables are show in SWQL Studio with a chain icon.
+	--   Here we are chaining base table (ActiveAlerts) to the AlertObjects and selecting additional fields there
+	,[ActiveAlerts].AlertObjects.TriggeredCount AS [Count]
+	,[ActiveAlerts].TriggeredDateTime AS [Date/Time]
+	,[ActiveAlerts].AlertObjects.AlertNote AS [Alert Note]
+    ,CASE
+        WHEN [ActiveAlerts].Acknowledged IS NULL
+			THEN 'Unacknowledged'
+		ELSE CONCAT (
+				'By: '
+				,[ActiveAlerts].AcknowledgedBy
+				,' at '
+				,[ActiveAlerts].AcknowledgedDateTime
+				,' / Note: '
+				,[ActiveAlerts].AcknowledgedNote
+				)
+		END AS [Ack. Details]
+	,CASE 
+		WHEN [ActiveAlerts].Acknowledged IS NULL
+			THEN '/Orion/images/StatusIcons/Small-EmptyIcon.gif'
+		ELSE '/Orion/images/ActiveAlerts/Acknowliedged_icon16x16v1.png'
+		END AS [_IconFor_Ack. Details]
+	,[ActiveAlerts].AlertObjects.EntityCaption AS [Object]
+	,[ActiveAlerts].AlertObjects.EntityDetailsUrl AS [_LinkFor_Object]
+	-- This part is some magical mystery as far as I'm concerned.  I looked at the icons on the actual All Active Alerts page and looked at how the URL was formatted
+	--   The StatusIcon.ashx takes (for our purposes) four (4) parameters: Entity, EntityUri, Size (always 'small'), and Timestamp
+	--   Then I just joined them all together to get the icon.
+	-- The timestamp was the interesting thing because it's in epoch time, which is the number of seconds after 01/01/1970
+	,CONCAT (
+		'/Orion/StatusIcon.ashx?entity='
+		,[ActiveAlerts].AlertObjects.EntityType
+		,'&EntityUri='
+		,[ActiveAlerts].AlertObjects.EntityUri
+		,'&size=small&timestamp='
+		,SecondDiff('01/01/1970', [ActiveAlerts].TriggeredDateTime)
+		) AS [_IconFor_Object]
+FROM Orion.AlertActive AS [ActiveAlerts]
+-- We are also chaining here to get the AlertHistory event type /though/ the first chain of AlertObjects
+--  The logic is this: "[ActiveAlerts].AlertObjects.AlertHistory.<Field Name>"
+--  We are querying the Active Alerts, which is connected to AlertObjects, which is connected to AlertHistory
+WHERE [ActiveAlerts].AlertObjects.AlertHistory.EventType IN (2, 3)
+ORDER BY [ActiveAlerts].TriggeredDateTime DESC
