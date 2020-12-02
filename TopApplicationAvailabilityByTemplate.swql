@@ -1,0 +1,24 @@
+SELECT ApplicationName
+	 , AVG(PercentAvailability) AS AvgAvailability
+FROM (
+	SELECT MAX(ApplicationStatus.Timestamp) AS [Month]
+		,Nodes.Caption AS [NodeName]
+		,Nodes.DetailsUrl AS [NodesDetailsUrl]
+		,Application.Name AS [ApplicationName]
+		,Application.DetailsUrl AS [ApplicationDetailsUrl]
+		,SUM(ApplicationStatus.PercentAvailability * ApplicationStatus.RecordCount) / SUM(ApplicationStatus.RecordCount) AS [PercentAvailability]
+	FROM Orion.APM.ApplicationStatus AS [ApplicationStatus]
+		,Orion.APM.Application AS [Application]
+		,Orion.Nodes AS [Nodes]
+	WHERE ApplicationStatus.Timestamp >= AddMinute(MinuteDiff(GetDate(), GetUtcDate()), AddMonth(MonthDiff(0, GetDate()), 0))
+		AND ApplicationStatus.ApplicationID = Application.ApplicationID
+		AND Application.NodeID = Nodes.NodeID
+	GROUP BY Application.ApplicationID
+		,Application.Name
+		,Nodes.Caption
+		,NodesDetailsUrl
+		,ApplicationDetailsUrl
+	ORDER BY Nodes.Caption
+		,Application.Name
+	)
+GROUP BY ApplicationName
