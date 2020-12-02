@@ -1,95 +1,110 @@
+#Requires -Version 5.1
+#Requires -Module @{ ModuleName = 'SwisPowerShell'; ModuleVersion = '2.4.0.176' }
+
 <#
-File Name:   Export-AtlasMapFiles.ps1
-Purpose:
-  This script will export the Network Atlas Maps (and associated files) from an active Orion System.  By default this script will export ALL maps and associated files  (including images).  To change it to only export hte AtlasMap files comment out or remove the "Exports only the Maps" region.
-  Export Path is to the current user's desktop.  This can be modified within the "Setup Variables & Connect to the SolarWinds Information Service (SWIS)" region.
-IMPORTANT NOTE:
-  This exports the files used by Network Atlas and not Orion Maps.
-Prerequisites:
-  You must have OrionSDK Installed (Link:  https://thwack.solarwinds.com/community/labs_tht/orion-sdk)
-  (tested with version 1.10)
-Version History: [P = Past, C = Current]
-  (P) 1.0.0 - Initial Release (2015-07-22)
-  (C) 1.0.1 - Update the path check for custom icons (2015-08-10)
-Tested against:
-  Orion Platform  2015.1.2
-  SAM 6.2.1
-  DPA 9.2.0
-  QoE 2.0
-  IPAM 4.3
-  NCM 7.4
-  NPM 11.5.2
-  NTA 4.1.1
-  OGS 1.0.10
-  WPM 2.2.0
-  SRM 6.1.11
-  Toolset 11.0.1
-  UDT 3.2.2
-  IVIM 2.1.0
-  VNQM 4.2.2
+Name:            Export-OrionMaps.ps1
+Author:          KMSigma [https://thwack.solarwinds.com/people/KMSigma]
+Purpose:         Export the files needed for Network Atlas Maps - useful for when you want to re-use the graphics (Prod <--> Test <--> Dev migrations)
+Version History: 1.0 (2018-07-17)
+                 - Initial build for THWACKcamp 2018
+                 1.1 (2018-10-17)
+                 - Updated with progress bars to make it more useful for a large count of files.
+                 1.2 (2020-12-02)
+                 - Updated with some logic so that converting this to a function will be easier
+Requires:
+    SolarWinds PowerShell Module (SwisPowerShell) which is documented with the SolarWinds Orion SDK [https://github.com/solarwinds/OrionSDK]
+    If you do not have it installed, you can install it in one of two ways:
+    1) Install-Module -Name SwisPowerShell
+       Installs to the default user's profile
+    2) Install-Module -Name SwisPowerShell -Scope AllUsers
+       Installs to the computer's profile (available to all users) <-- this is my preferred method
 #>
-# Set up the hostname, username, and password for the source system
-if ( -not ( SwisConnection ) )
-{
-    $OrionServer     = Read-Host -Prompt "Please enter the DNS name or IP Address for the Orion Server"
-    $SwisCredentials = Get-Credential -Message "Enter your Orion credentials for OrionServer"
-    $SwisConnection  = Connect-Swis -Credential $SwisCredentials -Hostname $OrionServer
+# This should no longer be necessary because of the Requires statment at the beginning
+#Import-Module -Name SwisPowerShell -ErrorAction SilentlyContinue
+$SwiHost = "nockmsmpe01v.demo.lab"
+
+# Let's collect the credentials to connect to Orion
+$SwiCreds = Get-Credential -Message "Enter your Orion Credentials to connect to $SwiHost"
+
+# Where would you like to save the files
+$SaveLocation = "D:\Data"
+
+# Do we want to include the SWI Host information in the path?
+# This is useful if you run with multiple Orion servers to separate the exports into different folders
+$IncludeSwiHostInPath = $true
+
+# Do we want to show the progress bars?
+# This is ok in many places, but is especially ugly in VS Code, so let's see if we can detect that
+$ShowProgress = ( -not ( $env:TERM_PROGRAM -eq 'vscode' ) )
+
+if ( $IncludeSwiHostInPath ) {
+  # Update the save path to include the SWI Host Name
+  $SaveLocation = Join-Path -Path $SaveLocation -ChildPath $SwiHost
 }
-# Export Path for the Files
-$ExportPath = "$env:userprofile\Desktop\AtlasMapFiles"
-#endregion
 
-#region Exports the Maps Only‌
-$SwqlQuery = @"
-SELECT FileName
-     , FileData
-FROM Orion.MapStudioFiles
-WHERE FileType = 0 AND IsDeleted = False
-ORDER BY FileName
-"@
-#endregion
+# There are multiple ways to connect to the SolarWinds Information Service
+# This example uses the "Orion" credentials.
+# Other examples are:
+#   Connect-Siws -HostName $SwiHost -Trusted [Logs is as the currently logged in Windows User]
+#   Connect-Swis -HostName $SwiHost -Username "admin" -Password "KeepItSecretKeepItSafe" [same as below, but with the username & password in plain text]
+$SwisConnection = Connect-Swis -Hostname $SwiHost -Credential $SwiCreds
 
-#region Exports the Maps and any associated files
+# This SWQL Query will export all non-deleted files
 $SwqlQuery = @"
-SELECT FileName
-     , FileData
+SELECT FileName, FileData
 FROM Orion.MapStudioFiles
 WHERE IsDeleted = False
 ORDER BY FileName
 "@
-#endregion
+<#
+Notes:
+  There is a chance that the FileName value, which is used as the export path, may be duplicated.  This is an exceedingly rare and edge case I'm not taking it into account at this stage.
 
-#region Collect the files to a local object
-$AtlasMapFiles = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlQuery
-Remove-Variable -Name SwisConnection -Force -Confirm:$false -ErrorAction SilentlyContinue
-$TotalMapFiles = $AtlasMapFiles.Count
-#endregion
+  The FileTypes stored in the table are integers and appear to be base 2.  These are the ones I know and the associated extensions/types:
+    0    - OrionMap
+    2    - 'flat' images (backgrounds and things)
+    128  - icon images (gif or wmf) as defined on https://documentation.solarwinds.com/en/success_center/orionplatform/Content/Core-Adding-Custom-Icons-from-Graphics-Files-sw3350.htm
+    1024 - 'flat' image thumbnails
+#>
 
-#region Check for Path Existence.  If the path doesn't exist, then it's created.
-if ( -not ( Test-Path -Path $ExportPath -ErrorAction SilentlyContinue ) )
+
+# Query SWIS for the file information
+$SwiFiles = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlQuery
+
+# Cycle through each file and display a counter
+For ( $i = 0; $i -lt $SwiFiles.Count; $i++ )
 {
-    Write-Host "Path: '$ExportPath' does not  exist.`nCreating Export Folder..." -ForegroundColor Yellow
-    New-Item -ItemType Directory -Path $ExportPath | Out-Null
-}
-#endregion
-
-#region Cycle through each file and export to the file system
-For ( $i = 0; $i -lt $TotalMapFiles; $i++ )
-{
-    Write-Progress -Activity "Exporting Network Atlas Map Files" -CurrentOperation "Exporting $( $AtlasMapFiles[$i].FileName )" -Status "Exporting $( $AtlasMapFiles[$i].FileData.Length ) bytes" -PercentComplete ( ( $i / $TotalMapFiles ) * 100 )
-    #region Added for verison 1.0.1 for Custom Icons
-    # Check for  the "Full Path" and create it, if it doesn't exist.
-    $ExportFullPath = ( Join-Path -Path $ExportPath -ChildPath $AtlasMapFiles[$i].FileName )
-    $ExportDirectory = Split-Path -Path $ExportFullPath -Parent
-    if ( -not ( Test-Path -Path $ExportDirectory -ErrorAction SilentlyContinue ) )
-    {
-        Write-Warning "`tCreating [$( $ExportDirectory )] Folder"
-        New-Item -Path $ExportDirectory -ItemType Directory | Out-Null
+    
+    if ( $ShowProgress ) {
+      # Progress bar showing the how we're progressing
+      Write-Progress -Activity "Exporting Map Files" -Status "Exporting $( $SwiFiles[$i].FileName )" -PercentComplete ( ( $i / $SwiFiles.Count ) * 100 )
     }
-    #endregion
-    # This was the trickiest bit - but was made easier when I realized I could encode as bytes.
-    $AtlasMapFiles[$i].FileData | Set-Content -Path ( Join-Path -Path $ExportPath -ChildPath $AtlasMapFiles[$i].FileName ) -Encoding Byte -Force
+    
+    # Build the output path for the file by combining the save location defined above and the file name
+    $ExportFullPath = Join-Path -Path $SaveLocation -ChildPath $SwiFiles[$i].FileName
+    # Check to see if the full path exists - it might not.  Let's build it.
+    if ( -not ( Test-Path -Path ( Split-Path -Path $ExportFullPath ) -ErrorAction SilentlyContinue ) ) 
+    { 
+        Write-Verbose -Message "Creating [$( ( Split-Path -Path $ExportFullPath -Parent ) )] Folder"
+        New-Item -Path ( Split-Path -Path $ExportFullPath -Parent ) -ItemType Directory | Out-Null
+    } 
+    
+    # We need to see if the file already exists
+    if ( ( Test-Path -Path $ExportFullPath -ErrorAction SilentlyContinue ) -and ( -not ( $Force ) ) ) {
+      # The file already exists and we are not Forcing an overwrite, we skip the export
+      Write-Warning -Message "The file $ExportFullPath already exists, skipping.  To overwrite this file change `$Force to `$true"
+    } else {
+      # All other scenarios (we are Forcing or the file does not exist), we export
+      $SwiFiles[$i].FileData | Set-Content -Path $ExportFullPath -Encoding Byte
+      # I'm outputting the results of the "Get-Item" details here in preparation of moving to a function to have a return value
+      Get-Item -Path $ExportFullPath
+    }
+    
 }
-Remove-Variable AtlasMapFiles
-Write-Progress -Activity "Exporting Network Atlas Map Files" -Completed
-#endregion
+
+if ( $ShowProgress ) {
+  # Close the progress bar
+  Write-Progress -Activity "Exporting Map Files" -Completed
+}
+# Cleanup - get rid of the SolarWinds-specific variables
+#Get-Variable -Name Swi* | Remove-Variable
