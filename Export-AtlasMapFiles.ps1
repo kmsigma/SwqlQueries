@@ -1,5 +1,5 @@
-#Requires -Version 5.1
-#Requires -Module @{ ModuleName = 'SwisPowerShell'; ModuleVersion = '2.4.0.176' }
+#Requires -Version 5
+#Requires -Module @{ ModuleName = 'SwisPowerShell'; ModuleVersion = '2.1.0.0' }
 
 <#
 Name:            Export-OrionMaps.ps1
@@ -19,27 +19,12 @@ Requires:
     2) Install-Module -Name SwisPowerShell -Scope AllUsers
        Installs to the computer's profile (available to all users) <-- this is my preferred method
 #>
-# This should no longer be necessary because of the Requires statment at the beginning
-#Import-Module -Name SwisPowerShell -ErrorAction SilentlyContinue
-$SwiHost = "nockmsmpe01v.demo.lab"
-
-# Let's collect the credentials to connect to Orion
-$SwiCreds = Get-Credential -Message "Enter your Orion Credentials to connect to $SwiHost"
-
-# Where would you like to save the files
-$SaveLocation = "D:\Data"
-
-# Do we want to include the SWI Host information in the path?
-# This is useful if you run with multiple Orion servers to separate the exports into different folders
-$IncludeSwiHostInPath = $true
-
-# Do we want to show the progress bars?
-# This is ok in many places, but is especially ugly in VS Code, so let's see if we can detect that
-$ShowProgress = ( -not ( $env:TERM_PROGRAM -eq 'vscode' ) )
-
-if ( $IncludeSwiHostInPath ) {
-  # Update the save path to include the SWI Host Name
-  $SaveLocation = Join-Path -Path $SaveLocation -ChildPath $SwiHost
+# Set up the hostname, username, and password for the source system
+if ( -not ( $SwisConnection ) )
+{
+    $OrionServer     = Read-Host -Prompt "Please enter the DNS name or IP Address for the Orion Server"
+    $SwisCredentials = Get-Credential -Message "Enter your Orion credentials for OrionServer"
+    $SwisConnection  = Connect-Swis -Credential $SwisCredentials -Hostname $OrionServer
 }
 
 # There are multiple ways to connect to the SolarWinds Information Service
