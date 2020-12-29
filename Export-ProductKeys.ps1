@@ -1,22 +1,26 @@
-﻿<#
-
+﻿<##################################################
 Export-ProductKeys.ps1
 
-This script exports the product keys from your SolarWinds Orion instance to a CSV on your current desktop
+This script exports the product keys from your SolarWinds Orion instance.
+It displays there mere and exports them to a CSV on the current user's desktop
 
 This is useful if you plan on migrating to new hardware.
+---Tested with Core 2020.2.1 HF1---
+##################################################>
 
-Tested with Core 2020.2.1 HF1
-
-#>
+$SwisHost = Read-Host -Prompt "Provide the IP or FQDN of your Orion server"
 
 if ( -not ( $SwisCreds ) )
 {
-    $SwisCreds = Get-Credential -Message "Enter your Orion credentials"
+    $SwisCreds = Get-Credential -Message "Enter your Orion credentials for $SwisHost"
 }
-$SwisConnection = Connect-Swis -Hostname "<Hostname or IP Address>" -Credential $SwisCreds
 
-# Get the EngineIDs for your Orion Servers"
+if ( $SwisHost -and $SwisCreds )
+{
+    $SwisConnection = Connect-Swis -Hostname $SwisHost -Credential $SwisCreds
+}
+
+# Get the License information for your Orion Servers"
 
 $SwqlOrionServerLicenses = @"
 SELECT [Licenses].OrionServer.Hostname
@@ -42,5 +46,15 @@ ORDER BY [Product]
 
 "@
 
-$LicenseData = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlOrionServerLicenses
-$LicenseData | Export-Csv -Path ( Join-Path -Path ( [System.Environment]::GetFolderPath("Desktop") ) -ChildPath "OrionLicenses.csv" ) -Force -NoTypeInformation
+if ( $SwisConnection )
+{
+    $LicenseData = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlOrionServerLicenses
+    $LicenseData
+    $LicenseData | Export-Csv -Path ( Join-Path -Path ( [System.Environment]::GetFolderPath("Desktop") ) -ChildPath "OrionLicenses.csv" ) -Force -NoTypeInformation
+}
+else
+{
+    Write-Error -Message "There's a problem with your connection to the SolarWinds Information Service"
+}
+
+Get-Variable -Name Swis* | Remove-Variable -ErrorAction SilentlyContinue
