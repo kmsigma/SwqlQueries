@@ -24,6 +24,7 @@ SELECT [Configs].DownloadTime
      , [Configs].Config
 FROM NCM.ConfigArchive AS [Configs]
 WHERE IsBinary = 'False'
+ORDER BY DownloadTime ASC
 "@
 
 # Build the initial export folder if necessary
