@@ -27,13 +27,6 @@ if ( -not ( $SwisConnection ) )
     $SwisConnection  = Connect-Swis -Credential $SwisCredentials -Hostname $OrionServer
 }
 
-# There are multiple ways to connect to the SolarWinds Information Service
-# This example uses the "Orion" credentials.
-# Other examples are:
-#   Connect-Siws -HostName $SwiHost -Trusted [Logs is as the currently logged in Windows User]
-#   Connect-Swis -HostName $SwiHost -Username "admin" -Password "KeepItSecretKeepItSafe" [same as below, but with the username & password in plain text]
-$SwisConnection = Connect-Swis -Hostname $SwiHost -Credential $SwiCreds
-
 # This SWQL Query will export all non-deleted files
 $SwqlQuery = @"
 SELECT FileName, FileData
