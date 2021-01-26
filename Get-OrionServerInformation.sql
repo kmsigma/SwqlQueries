@@ -18,33 +18,42 @@ out of the use of or inability to use the scripts or documentation.
 -- If you used a different name, replace it below
 USE SolarWindsOrion;
 
-SELECT [Hostname]
-     , [ServerType]
-     , [Product]
-     , CASE
-          WHEN HotFix IS NULL THEN [ReleaseVersion]
-          ELSE [ReleaseVersion] + ' HF' + [HotFix]
-       END AS [Version]
+SELECT [Hostname],
+	[ServerType],
+	CASE 
+		WHEN (
+				EXISTS (
+					SELECT *
+					FROM Licensing_LicenseAssignments
+					WHERE [ProductName] = 'VM'
+					)
+				AND ([Acronym] = 'VMAN')
+				)
+			THEN 'Virtualization Manager'
+		WHEN (
+				NOT EXISTS (
+					SELECT *
+					FROM Licensing_LicenseAssignments
+					WHERE [ProductName] = 'VM'
+					)
+				AND ([Acronym] = 'VMAN')
+				)
+			THEN 'Virtual Infrastructure Monitor'
+		ELSE [Product]
+		END AS [Product],
+	[Acronym],
+	CASE 
+		WHEN HotFix IS NULL
+			THEN [ReleaseVersion]
+		ELSE [ReleaseVersion] + ' HF' + [HotFix]
+		END AS [Version]
 FROM [OrionServers]
-CROSS APPLY OPENJSON([Details])
-   WITH (
-      [Product]        varchar(50) '$.Name'
-    , [ReleaseVersion] varchar(25) '$.Version'
-    , [Hotfix]         varchar(5)  '$.HotfixVersionNumber'
-   ) AS VersionInfo
--- Ignore 'products' that are actually just 'features'
-WHERE [Product] in ( 'Database Performance Analyzer Integration Module'
-                   , 'IP Address Manager'
-                   , 'Log Analyzer'
-                   , 'NetFlow Traffic Analyzer'
-                   , 'Network Configuration Manager'
-                   , 'Network Performance Monitor'
-                   , 'Orion Platform'
-                   , 'Server & Application Monitor'
-                   , 'Server Configuration Monitor'
-                   , 'Storage Resource Monitor'
-                   , 'Toolset'
-                   , 'User Device Tracker'
-                   , 'VoIP and Network Quality Manager'
-                   , 'Web Performance Monitor' )
+CROSS APPLY OPENJSON([Details]) WITH (
+		[Product] VARCHAR(50) '$.Name',
+		[Acronym] VARCHAR(5) '$.ShortName',
+		[ReleaseVersion] VARCHAR(25) '$.Version',
+		[Hotfix] VARCHAR(5) '$.HotfixVersionNumber'
+		) AS VersionInfo
+-- Remove 'features' that are erroneously listed as a 'product'
+WHERE [Product] NOT IN ('Cloud Monitoring', 'Quality of Experience', 'NetPath', 'Virtual Infrastructure Monitor')
 ORDER BY Hostname
