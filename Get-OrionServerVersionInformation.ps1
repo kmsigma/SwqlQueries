@@ -24,12 +24,13 @@ NOCKMSMPE01V MainPoller Web Performance Monitor          2020.2.1
 
 #>
 
-
-if ( -not ( $SwisCreds ) )
+if ( -not ( $SwisConnection ) )
 {
-    $SwisCreds = Get-Credential -Message "Enter your Orion credentials"
+    $OrionServer     = Read-Host -Prompt "Please enter the DNS name or IP Address for the Orion Server"
+    $SwisCredentials = Get-Credential -Message "Enter your Orion credentials for $OrionServer"
+    $SwisConnection  = Connect-Swis -Credential $SwisCredentials -Hostname $OrionServer
 }
-$SwisConnection = Connect-Swis -Hostname "<Orion Server IP or HostName>" -Credential $SwisCreds
+
 
 # Get the details for your Orion Servers
 
@@ -44,8 +45,8 @@ FROM  Orion.OrionServers
 $VersionReport = @()
 
 # List of actual product names (ignoring "features" that appear like products
-$ProductNames = "IP Address Manager", "Log Analyzer", "NetFlow Traffic Analyzer", "Network Configuration Manager", "Network Performance Monitor", "Orion Platform", "Server & Application Monitor", "Server Configuration Monitor", "Storage Resource Monitor", "User Device Tracker", "VoIP and Network Quality Manager", "Web Performance Monitor"
-
+$ProductNames = "Database Performance Analyzer Integration Module", "IP Address Manager", "Log Analyzer", "NetFlow Traffic Analyzer", "Network Configuration Manager", "Network Performance Monitor", "Orion Platform", "Server & Application Monitor", "Server Configuration Monitor", "Storage Resource Monitor", "Toolset", "User Device Tracker", "VoIP and Network Quality Manager", "Web Performance Monitor"
+$ProductAcronyms = "DPAIM", "IPAM", "LA", "NCM", "NPM", "NTA", "SAM", "SCM", "SRM", "Toolset", "UDT", "VMAN", "VNQM", "WPM"
 
 $ServerData = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlOrionServerData
 
@@ -56,7 +57,8 @@ ForEach ( $Server in $ServerData )
     ForEach ( $Product in ( $Server.Details | ConvertFrom-Json ) | Select-Object -Property Name, Version, HotfixVersionNumber | Sort-Object -Property Name, Version, HotfixVersionNumber )
     {
         # Here's where we ignore the "features" that are listed like a product
-        if ( $Product.Name -in $ProductNames )
+        # if ( $Product.Name -in $ProductNames )
+        if ( $Product.ShortName -in $ProductAcryonyms )
         {
             if ( $Product.HotfixVersionNumber )
             {
