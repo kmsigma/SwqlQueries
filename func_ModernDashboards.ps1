@@ -32,6 +32,8 @@
             Mimic a -PassThru parameter that just returns the JSON data to the pipeline
             -AsPsObject [switch] (child of -PassThru)
                 Allows for the raw Json to be returned as a PowerShell object
+        * Determine a way to filter out "system" dashboards
+            Current best guess is that if the unique_key is a GUID, it's a user dashboard
 
 #>
 function Export-ModernDashboard {
