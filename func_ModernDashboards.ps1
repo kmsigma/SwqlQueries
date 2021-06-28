@@ -94,13 +94,13 @@ function Export-ModernDashboard {
     Begin {
         # if no dashboard ids are provided, assume we export the all, so get the list
         if ( -not $DashboardId ) {
-            Write-Verbose -Message "No DashboardIds Provided - exporting all"
+            Write-Verbose -Message "EXPORT ALL: No DashboardIds Provided - exporting all"
             $Swql = "SELECT DashboardID FROM Orion.Dashboards.Instances WHERE ParentID IS NULL"
             $DashboardId = Get-SwisData -SwisConnection $SwisConnection -Query $Swql
         }
 
-        # How deep does the Json go?  From initial testing it looks like 10 is sufficient, this gives flexibility
-        $JsonDepth = 10
+        # How deep does the Json go?  From initial testing it looks like 25 is sufficient, this gives flexibility
+        $JsonDepth = 25
     }
     Process {
         ForEach ( $d in $DashboardId ) {
@@ -118,7 +118,7 @@ function Export-ModernDashboard {
             }
             
             # Check to see if the export file already exists and we are not forcing overwrite
-            if ( ( -not ( Test-Path -Path $ExportFilePath -ErrorAction SilentlyContinue ) ) -and ( -not ( $Force ) ) ) {
+            if ( ( -not ( Test-Path -Path $ExportFilePath -ErrorAction SilentlyContinue ) ) -or ( $Force ) ) {
                 # Ask if we want to export
                 if ( $pscmdlet.ShouldProcess("to '$OutputFolder'", "Export '$DashboardName'") ) {
                     # Actually do the export
