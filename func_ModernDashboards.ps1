@@ -109,6 +109,10 @@ function Export-ModernDashboard {
             # The name is stored within the Json file, so we need to load it as Json and interpret it.
             $DashboardObject = $DashboardText.'#text' | ConvertFrom-Json
             $DashboardName = $DashboardObject.dashboards.name
+            if ( $DashboardObject.dashboards.unique_key -notmatch '[a-f,0-9]{8}-[a-f,0-9]{4}-[a-f,0-9]{4}-[a-f,0-9]{4}-[a-f,0-9]{12}' ) {
+                # This is a system dashboard, so add "SYSTEM" to the name
+                $DashboardName = "SYSTEM_$( $DashboardName )"
+            }
 
             if ( $IncludeId ) {
                 $ExportFilePath = Join-Path -Path $OutputFolder -ChildPath "$( $d )_$( $DashboardName ).json"
@@ -141,13 +145,14 @@ function Export-ModernDashboard {
 ##################################################
 Import-ModernDashboard function still to be done
 ##################################################
+#>
 
 function Import-ModernDashboard {
     [CmdletBinding(DefaultParameterSetName = 'Normal', 
         SupportsShouldProcess = $true, 
         PositionalBinding = $false,
         HelpUri = 'https://documentation.solarwinds.com/en/success_center/orionplatform/content/core-fusion-dashboard-import-export.htm',
-        ConfirmImpact = 'Hight')]
+        ConfirmImpact = 'High')]
     [Alias()]
     [OutputType([String])]
     Param
@@ -165,25 +170,43 @@ function Import-ModernDashboard {
         [SolarWinds.InformationService.Contract2.InfoServiceProxy]$SwisConnection,
 
         # If a pre-existing dashboard name matches, use a different name
+        [Parameter(Position = 1,
+            ParameterSetName = 'Normal')]
+        [string[]]$Path = ( Get-Location ),
+
+        # If a pre-existing dashboard name matches, overwrite it
         [Parameter(ParameterSetName = 'Normal')]
         [AllowNull()]
-        [switch]$RenameOnConflict,
-
-        [Parameter(ParameterSetName = 'Normal')]        
-        [AllowNull()]
         [switch]$Force
-
-
 
     )
 
     Begin {
+        # How deep does the Json go?  From initial testing it looks like 25 is sufficient, this gives flexibility
+        $JsonDepth = 25
     }
     Process {
-        if ( $pscmdlet.ShouldProcess("to '$OutputFolder'", "Import '$DashboardName'") ) {
+        $FileList = @()
+        ForEach ( $P in $Path ) {
+            $P = Get-Item -Path $P
+            if ( $P.PSIsContainer ) {
+                Write-Verbose -Message "Directory Detected"
+                $FileList += Get-ChildItem -Path $P
+            } else {
+                Write-Verbose -Message "Single File"
+                $FileList += $P
+            }
         }
+            
+        ForEach ( $File in $FileList ) {
+            $TemplateObject = Get-Content -Path $File | ConvertFrom-Json -Depth $JsonDepth
+            if ( $pscmdlet.ShouldProcess("Orion Server: [$( $SwisConnection.Channel.Via.Host )]", "Import Dashboard [$( $TemplateObject.dashboards.name )]") ) {
+                Write-Verbose -Message "Importing Dashboard '$( $TemplateObject.dashboards.name )' to Orion Server: [$( $SwisConnection.Channel.Via.Host )]"
+                Invoke-SwisVerb -SwisConnection $SwisConnection -EntityName "Orion.Dashboards.Instances" -Verb "Import" -Arguments ( $TemplateObject | ConvertTo-Json -Depth $JsonDepth -Compress ) | Out-Null
+            }
+        }
+
     }
     End {
     }
 }
-#>
