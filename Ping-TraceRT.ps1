@@ -1,13 +1,13 @@
 ﻿<# File Name: Ping-TraceRT.ps1 #>
+# Adding a timer just to see how long this takes
 $Stopwatch = New-Object -TypeName System.Diagnostics.Stopwatch
 $Stopwatch.Start()
+
 # Move to the Proper Folder where these scripts 'live'
 Write-Host "Execution Path: $( ( Split-Path -Path $MyInvocation.MyCommand.Path -Parent ) )"
 Set-Location -Path ( Split-Path -Path $MyInvocation.MyCommand.Path -Parent )
 
 # Check & Import the Test-PingTrace function
-
-
 if ( -not ( Get-Command -Name Test-PingTrace -ErrorAction SilentlyContinue) ) {
     . .\func_PingTrace.ps1
 }
@@ -23,6 +23,12 @@ if ( -not ( Get-Command -Name Test-PingTrace -ErrorAction SilentlyContinue) ) {
     alertDefinitonId = '${N=Alerting;M=AlertDefID}'
     alertObject      = '${N=SwisEntity;M=NodeID}'
     objectType       = '${N=Alerting;M=ObjectType}'
+
+The 'alert action executable' should look like this:
+
+    "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy Unrestricted -File "C:\Scripts\Ping-TraceRT.ps1" "${N=SwisEntity;M=IP_Address}" "${N=Alerting;M=AlertDefID}" "${N=SwisEntity;M=NodeID}" "${N=Alerting;M=ObjectType}"
+
+This is assuming that you save the Ping-TraceRT.ps1 and func_PingTrace.ps1 in the "C:\Scripts" folder
 
 #>
 
