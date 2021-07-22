@@ -19,13 +19,6 @@ function Test-PingTrace {
         [Alias("IP")] 
         [string]$IPAddress,
 
-        # The Alert Object ID - required by the appendNote verb
-        [Parameter(Mandatory = $false)]
-        [int]$AlertObjectID,
-
-        # Do you want us to update the note or just do the thing?
-        [switch]$AddNote,
-
         # Number of times to try and ping (default to 4)
         [int]$NumPings = 4,
 
@@ -34,40 +27,35 @@ function Test-PingTrace {
     )
 
     Begin {
-        #### Build Connection to SolarWinds Orion Server ####
-        # If we want to update the note, we need to connect to SWIS
-        if ( $AddNote ) {
-            # Connect to "self" (Local Computername and connect with the certificate)
-            $SwisConnection = Connect-Swis -Hostname "$env:COMPUTERNAME" -Certificate
-        }
+        # Nothing to see here
     }
     Process {
         if ( $pscmdlet.ShouldProcess("$IPAddress", "Ping the thing") ) {
 
-            Write-Host "Pinging '$IPAddress' $NumPings times" -ForegroundColor Yellow
+            Write-Verbose -Message "Sending $NumPings to '$IPAddress'"
             # Using Test-Connection adds a whole bunch of other stuff we don't need, so get the basics
             $PingResults = Test-Connection -ComputerName $IPAddress -Count $NumPings -ErrorAction SilentlyContinue | Select-Object -Property @{ Name = "Source"; Expression = { $_.PSComputerName } }, Address, ReplySize, ResponseTime
 
-            Write-Host "Running Traceroute for '$IPAddress'" -ForegroundColor Yellow
+            Write-Verbose -Message "Running a trace to '$IPAddress' with up to $NumHops hops"
             # Tracing using Test-NetConnection adds a whole bunch of other stuff we don't need, so get the basics
             $TraceRtResults = Test-NetConnection -ComputerName $IPAddress -TraceRoute -Hops $NumHops -ErrorAction SilentlyContinue | Select-Object SourceAddress, RemoteAddress, @{ Name = "RTT"; Expression = { $_.PingReplyDetails.RoundtripTime } }, TraceRoute
 
+            # Start with an empty Note
             $Note = ""
-            Write-Host "Ping Results:" -ForegroundColor Green
             if ( $PingResults ) {
-                $PingResults
-                $Note +=  @"
+                # Add the ping success information to the Note
+                $Note += @"
 Ping Results:
 -----------------------------------------------------
 Source Address:         $( $env:COMPUTERNAME )
 Remote Address:         $( $PingResults[0].Address )
 Number of Pings:        $NumPings
 Avg Response Time (ms): $( $PingResults | Measure-Object -Property ResponseTime -Average | Select-Object -ExpandProperty Average )
-
+`n
 "@                
             }
             else {
-                Write-Host "Ping to '$IPAddress' did not return any packets" -ForegroundColor Red
+                # Add the ping failure information to the Note
                 $Note += @"
 Ping Results:
 -----------------------------------------------------
@@ -76,14 +64,12 @@ Remote Address:         $IPAddress
 Number of Pings:        $NumPings
 Avg Response Time (ms): N/A
 ***** PING FAILED *****
-
+`n
 "@
             }
 
-
-            Write-Host "Trace Results:" -ForegroundColor Green
             if ( $TraceRtResults ) {
-                $TraceRtResults
+                # Add the tracert success information to the Note
                 $Note += @"
 Trace Route Results:
 -----------------------------------------------------
@@ -92,9 +78,11 @@ Remote Address:       $IPAddress
 Round Trip Time (ms): $( $TraceRtResults.RTT )
 Hops:
 $( $TraceRtResults.TraceRoute | ForEach-Object { "`t$( $_ )`n" } )
+`n
 "@
-            } else {
-                Write-Host "Trace to '$IPAddress' did not complete correctly"
+            }
+            else {
+                # Add the tracert success information to the Note
                 $Note += @"
 Trace Route Results:
 -----------------------------------------------------
@@ -104,14 +92,14 @@ Round Trip Time (ms): N/A
 Hops:
     N/A
 ***** TRACE FAILED *****
+`n
 "@
-            }
 
-            if ( $AddNote ) {
-                # Update the Note in Orion
-                # Since 'AppendNote' is expecting an array of AlertObjectIds, we can just wrap with @( $thing ) to turn it into an array
-                Invoke-SwisVerb -SwisConnection $SwisConnection -EntityName "Orion.AlertActive" -Verb "AppendNote" -Arguments ( @( $AlertObjectID ), $Note ) | Out-Null
             }
+            
+            # We've finished building the note, so let's send it back outside the function
+            $Note
+
         }
     }
 
