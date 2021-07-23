@@ -3,7 +3,7 @@ Script: Disable-OotbAlerts.ps1
 
 Disables all of the native Out-Of-The-Box alerts.
 
-Original Link: https://thwack.solarwinds.com/t5/The-Orion-Platform-Documents/Disabling-quot-Canned-quot-Alerts/ta-p/593358
+Original Link: Disabling "Canned" Alerts [https://thwack.solarwinds.com/product-forums/the-orion-platform/f/forum/6986/disabling-canned-alerts]
 #>
 
 if ( -not ( $SwisConnection ) ) {
