@@ -1,0 +1,44 @@
+SELECT TOP 1000 [AuditEvent].AuditEventID
+     , [AuditEvent].TimeLoggedUtc
+     , [AuditEvent].AccountID
+     , [AuditEvent].AuditingActionType.ActionTypeDisplayName
+     , [AuditEvent].AuditEventMessage
+     , [AuditEvent].DetailsUrl
+     , [AuditEvent].DisplayName
+     , [AuditEvent].Arguments.ArgsValue AS [EntityUri]
+FROM Orion.AuditingEvents AS [AuditEvent]
+--WHERE [AuditEvent].AuditingActionType.ActionTypeDisplayName = 'Alerts muted'
+WHERE [AuditEvent].Arguments.ArgsKey = 'EntityUri'
+ORDER BY [AuditEvent].AuditEventID DESC
+
+
+SELECT CASE
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%' AND [AlertSup].EntityUri NOT LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/%' THEN [N].Caption
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/Interfaces/InterfaceID=%' THEN [I].FullName
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/Applications/ApplicationID=%' THEN [AA].FullyQualifiedName
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Groups/ContainerID=%' THEN [G].Name
+       END AS [EntityName]
+     , CASE
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%' AND [AlertSup].EntityUri NOT LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/%' THEN [N].DetailsUrl
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/Interfaces/InterfaceID=%' THEN [I].DetailsUrl
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/Applications/ApplicationID=%' THEN [AA].DetailsUrl
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Groups/ContainerID=%' THEN [G].DetailsUrl
+       END AS [DetailsUrl]
+     , CASE
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%' AND [AlertSup].EntityUri NOT LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/%' THEN 'Node'
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/Interfaces/InterfaceID=%' THEN 'Interface'
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Nodes/NodeID=%/Applications/ApplicationID=%' THEN 'Application'
+          WHEN [AlertSup].EntityUri LIKE 'swis://%/Orion/Orion.Groups/ContainerID=%' THEN 'Group'
+       END AS [ElementType]
+     , [AlertSup].SuppressFrom AS [Mute Time]
+FROM Orion.AlertSuppression AS [AlertSup]
+LEFT OUTER JOIN Orion.Nodes AS [N]
+  ON [AlertSup].[EntityUri] = [N].[Uri]
+LEFT OUTER JOIN Orion.NPM.Interfaces AS [I]
+  ON [AlertSup].[EntityUri] = [I].[Uri]
+LEFT OUTER JOIN Orion.APM.Application AS [AA]
+  ON [AlertSup].[EntityUri] = [AA].[Uri]
+LEFT OUTER JOIN Orion.Container AS [G]
+  ON [AlertSup].[EntityUri] = [G].[Uri]
+WHERE [AlertSup].SuppressFrom <= GETUTCDATE() -- Ignore mutings scheduled in the future
+ORDER BY [AlertSup].SuppressFrom
