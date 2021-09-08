@@ -32,8 +32,12 @@ ORDER BY $( $CpAlias ).TargetEntity, $( $CpAlias ).Field
 # Run the query to get the list of all Custom Properties
 $ListOfCps = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlCpList
 
+# Export all of the CP's to have a record
+$ListOfCps | Export-Csv -Path ( Join-Path -Path $ExportPath -ChildPath "_CustomProperties.csv" ) -Force -Confirm:$false -NoTypeInformation
+
 # Let's get the list of distinct target entities and just store they as an array of strings
 $TargetEntities = $ListOfCps | Select-Object -Property TargetEntity -Unique | Select-Object -ExpandProperty TargetEntity
+
 
 #region Identifying Details/Filters/Sorting
 <#
