@@ -10,7 +10,7 @@ if ( -not ( Test-Path -Path $ExportPath -ErrorAction SilentlyContinue ) ) {
 
 # Build the connection to SolarWinds Orion
 # Certificate authentication assumes you are running on the local Orion server, if not, use a different authentication method
-$SwisConnection = Connect-Swis -Hostname $env:COMPUTERNAME -Certificate
+$SwisConnection = Connect-Swis -Hostname 'kmsorion01v.kmsigma.local' -Certificate
 
 
 # Define a global 'alias' for the Custom Property Lookups
@@ -47,12 +47,12 @@ $TargetEntities = $ListOfCps | Select-Object -Property TargetEntity -Unique | Se
 
 # To do this work we'll need some 'default' fields so we can identify what we're looking at
 $BaseCpFields = @{
-    "IPAM.GroupsCustomProperties" = "$( $CpAlias ).GroupID, $( $CpAlias ).GroupNode.FriendlyName, $( $CpAlias ).GroupNode.Address, $( $CpAlias ).GroupNode.CIDR, $( $CpAlias ).GroupNode.GroupTypeText";
+    "IPAM.GroupsCustomProperties"               = "$( $CpAlias ).GroupID, $( $CpAlias ).GroupNode.FriendlyName, $( $CpAlias ).GroupNode.Address, $( $CpAlias ).GroupNode.CIDR, $( $CpAlias ).GroupNode.GroupTypeText";
     "Orion.AlertConfigurationsCustomProperties" = "$( $CpAlias ).AlertID, $( $CpAlias ).Alert.Name";
-    "Orion.GroupCustomProperties" = "$( $CpAlias ).ContainerID, $( $CpAlias ).[Group].Name";
-    "Orion.NodesCustomProperties" = "$( $CpAlias ).NodeID, $( $CpAlias ).Node.IPAddress, $( $CpAlias ).Node.Caption";
-    "Orion.NPM.InterfacesCustomProperties" = "$( $CpAlias ).InterfaceID, $( $CpAlias ).Interface.FullName"
-    "Orion.ReportsCustomProperties" = "$( $CpAlias ).ReportID, $( $CpAlias ).Report.Title"
+    "Orion.GroupCustomProperties"               = "$( $CpAlias ).ContainerID, $( $CpAlias ).[Group].Name";
+    "Orion.NodesCustomProperties"               = "$( $CpAlias ).NodeID, $( $CpAlias ).Node.IPAddress, $( $CpAlias ).Node.Caption";
+    "Orion.NPM.InterfacesCustomProperties"      = "$( $CpAlias ).InterfaceID, $( $CpAlias ).Interface.FullName"
+    "Orion.ReportsCustomProperties"             = "$( $CpAlias ).ReportID, $( $CpAlias ).Report.Title"
 }
 
 # Some of the queries would benefit from filtering off some information
@@ -63,12 +63,12 @@ $WhereClauses = @{
 
 # This sorting is optional, but incredibly helpful
 $OrderByClauses = @{
-    "IPAM.GroupsCustomProperties" = "ORDER BY $( $CpAlias ).GroupNode.ParentID, $( $CpAlias ).GroupNode.GroupType";
+    "IPAM.GroupsCustomProperties"               = "ORDER BY $( $CpAlias ).GroupNode.ParentID, $( $CpAlias ).GroupNode.GroupType";
     "Orion.AlertConfigurationsCustomProperties" = "ORDER BY $( $CpAlias ).Alert.Name";
-    "Orion.GroupCustomProperties" = "ORDER BY $( $CpAlias ).[Group].Name";
-    "Orion.NodesCustomProperties" = "ORDER BY $( $CpAlias ).Node.Caption, $( $CpAlias ).Node.IPAddress";
-    "Orion.NPM.InterfacesCustomProperties" = "ORDER BY $( $CpAlias ).Interface.FullName"
-    "Orion.ReportsCustomProperties" = "ORDER BY $( $CpAlias ).Report.Title"
+    "Orion.GroupCustomProperties"               = "ORDER BY $( $CpAlias ).[Group].Name";
+    "Orion.NodesCustomProperties"               = "ORDER BY $( $CpAlias ).Node.Caption, $( $CpAlias ).Node.IPAddress";
+    "Orion.NPM.InterfacesCustomProperties"      = "ORDER BY $( $CpAlias ).Interface.FullName"
+    "Orion.ReportsCustomProperties"             = "ORDER BY $( $CpAlias ).Report.Title"
 }
 #endregion Identifying Details/Filters/Sorting
 
@@ -82,10 +82,15 @@ ForEach ( $TargetEntity in $TargetEntities ) {
     
     # The query takes the form:
     # SELECT (Base Fields), (Fields From Custom Properties) FROM (Target Entity) (WHERE/filter clauses) (ORDER BY/sorting clauses)
-    $CpQuery = "SELECT $( $BaseCpFields[$TargetEntity] ), $( $FieldsWithAlias -join ", " ) FROM $TargetEntity AS $CpAlias $( $WhereClauses[$TargetEntity] ) $( $OrderByClauses[$TargetEntity] )"
-    $Results = Get-SwisData -SwisConnection $SwisConnection -Query $CpQuery
-    if ( $Results ) {
-        Write-Host "Exporting $( $Results.Count) record(s) from $TargetEntity to '$( $ExportPath )\$( $TargetEntity ).csv"
-        $Results | Export-Csv -Path ( Join-Path -Path $ExportPath -ChildPath "$( $TargetEntity ).csv" ) -Force -Confirm:$false -NoTypeInformation
+    if ( $BaseCpFields[$TargetEntity] ) {
+        $CpQuery = "SELECT $( $BaseCpFields[$TargetEntity] ), $( $FieldsWithAlias -join ", " ) FROM $TargetEntity AS $CpAlias $( $WhereClauses[$TargetEntity] ) $( $OrderByClauses[$TargetEntity] )"
+        $Results = Get-SwisData -SwisConnection $SwisConnection -Query $CpQuery
+        if ( $Results ) {
+            Write-Host "Exporting $( $Results.Count) record(s) from $TargetEntity to '$( $ExportPath )\$( $TargetEntity ).csv"
+            $Results | Export-Csv -Path ( Join-Path -Path $ExportPath -ChildPath "$( $TargetEntity ).csv" ) -Force -Confirm:$false -NoTypeInformation
+        }
+    }
+    else {
+        Write-Error -Message "No 'Default' Custom Properties are defined for '$TargetEntity'" -RecommendedAction "Update the script to fix it"
     }
 }
