@@ -1,4 +1,7 @@
 ﻿# Export-SwisCp.ps1
+#Requires -Module @{ ModuleName = 'SwisPowerShell'; ModuleVersion = '3.0.0' }
+
+
 $ExecutionStartTime = ( Get-Date -Format 's' ).Replace(":", "-")
 
 <#
@@ -27,8 +30,17 @@ if ( -not ( Test-Path -Path $ExportPath -ErrorAction SilentlyContinue ) ) {
 #endregion Quick Check to see if the folder exists, and if not, create it
 
 # Build the connection to SolarWinds Orion
+# This example prompts for the server name/IP and then asks for the username/password combo
+if ( -not $SwisConnection ) {
+    $SwisHostname = Read-Host -Prompt "Please enter the DNS or IP of your Orion Server"
+    $SwisCredential = Get-Credential -Message "Provide the username/password for '$SwisHostname'"
+
+    $SwisConnection = Connect-Swis -Hostname $SwisHostname -Credential $SwisCredential
+    # Once we have the connection, we don't need the credentials, so remove them.
+    Remove-Variable -Name SwisHostname, SwisCredential -ErrorAction SilentlyContinue
+}
 # Certificate authentication assumes you are running on the local Orion server, if not, use a different authentication method
-$SwisConnection = Connect-Swis -Hostname 'kmsorion01v.kmsigma.local' -Certificate
+#$SwisConnection = Connect-Swis -Hostname 'kmsorion01v.kmsigma.local' -Certificate
 
 
 # Define a global 'alias' for the Custom Property Lookups
@@ -109,7 +121,7 @@ ForEach ( $TargetEntity in $TargetEntities ) {
     $Fields = $ListOfCps | Where-Object { $_.TargetEntity -eq $TargetEntity }
     # Now the $Fields variable contains the names of the fields for the current Target Entity type
     # But, I want to use the Alias, so I'll need to do some clever convertion and then store them as strings (so I can use the -join operator)
-    # I also added an alias for CP_(FieldName) so in the exported CSV, it's obvious which fields are custom properties
+    # I also added an alias for CP_(FieldName) so in the exported CSV, it's (hopefully) obvious which fields are custom properties
     $FieldsWithAlias = $Fields | Select-Object -Property @{ Name = 'Field'; Expression = { "$( $CpAlias ).$( $_.Field ) AS CP_$( $_.Field )" } } | Select-Object -ExpandProperty Field
     
     # The query takes the form:
