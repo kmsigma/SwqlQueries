@@ -3,6 +3,7 @@
 
 
 $ExecutionStartTime = ( Get-Date -Format 's' ).Replace(":", "-")
+$ExecutionStartTime = ( Get-Date ).ToString("yyyy-MM-dd")
 
 <#
 
@@ -66,7 +67,7 @@ $ListOfCps = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlCpList
 $ListOfCps | Export-Csv -Path ( Join-Path -Path $ExportPath -ChildPath "_CustomProperties.csv" ) -Force -Confirm:$false -NoTypeInformation
 
 # Let's get the list of distinct target entities and just store they as an array of strings
-$TargetEntities = $ListOfCps | Select-Object -Property TargetEntity -Unique | Select-Object -ExpandProperty TargetEntity
+$TargetEntities = $ListOfCps | Select-Object -Property TargetEntity -Unique | Select-Object -ExpandProperty TargetEntity | Sort-Object
 
 
 #region Identifying Details/Filters/Sorting
@@ -83,16 +84,34 @@ $TargetEntities = $ListOfCps | Select-Object -Property TargetEntity -Unique | Se
 
 # To do this work we'll need some 'default' fields so we can identify what we're looking at
 $BaseCpFields = @{
-    "IPAM.GroupsCustomProperties"               = "$( $CpAlias ).Uri, $( $CpAlias ).GroupNode.FriendlyName, $( $CpAlias ).GroupNode.Address, $( $CpAlias ).GroupNode.CIDR, $( $CpAlias ).GroupNode.GroupTypeText"
-    "IPAM.NodesCustomProperties"                = "$( $CpAlias ).Uri, $( $CpAlias ).IPNode.SysName, $( $CpAlias ).IPNode.DnsBackward, $( $CpAlias ).IPNode.IPAddress, $( $CpAlias ).IPNode.MAC"
-    "Orion.AlertConfigurationsCustomProperties" = "$( $CpAlias ).Alert.Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).Alert.Name"
-    "Orion.APM.ApplicationCustomProperties"     = "$( $CpAlias ).Application.Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).Application.Node.Caption, $( $CpAlias ).Application.Name"
-    "Orion.GroupCustomProperties"               = "$( $CpAlias ).[Group].Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).[Group].Name"
-    "Orion.NodesCustomProperties"               = "$( $CpAlias ).Node.Caption, $( $CpAlias ).Uri, $( $CpAlias ).Node.IPAddress"
-    "Orion.NPM.InterfacesCustomProperties"      = "$( $CpAlias ).Uri, $( $CpAlias ).Interface.FullName"
-    "Orion.ReportsCustomProperties"             = "$( $CpAlias ).Uri, $( $CpAlias ).Report.Title"
-    "Orion.SEUM.RecordingCustomProperties"      = "$( $CpAlias ).Recording.Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).Recording.DisplayName, $( $CpAlias ).Recording.Description"
-    "Orion.VolumesCustomProperties"             = "$( $CpAlias ).Uri, $( $CpAlias ).Volume.Node.Caption AS [Node], $( $CpAlias ).Volume.Description, $( $CpAlias ).Volume.VolumeType"
+    "IPAM.GroupsCustomProperties"                     = "$( $CpAlias ).Uri, $( $CpAlias ).GroupNode.FriendlyName, $( $CpAlias ).GroupNode.Address, $( $CpAlias ).GroupNode.CIDR, $( $CpAlias ).GroupNode.GroupTypeText"
+    "IPAM.NodesCustomProperties"                      = "$( $CpAlias ).Uri, $( $CpAlias ).IPNode.SysName, $( $CpAlias ).IPNode.DnsBackward, $( $CpAlias ).IPNode.IPAddress, $( $CpAlias ).IPNode.MAC"
+    "Orion.AlertConfigurationsCustomProperties"       = "$( $CpAlias ).Alert.Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).Alert.Name"
+    "Orion.APM.ApplicationCustomProperties"           = "$( $CpAlias ).Application.Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).Application.Node.Caption, $( $CpAlias ).Application.Name"
+    "Orion.GroupCustomProperties"                     = "$( $CpAlias ).[Group].Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).[Group].Name"
+    "Orion.NodesCustomProperties"                     = "$( $CpAlias ).Node.Caption, $( $CpAlias ).Uri, $( $CpAlias ).Node.IPAddress"
+    "Orion.NPM.InterfacesCustomProperties"            = "$( $CpAlias ).Uri, $( $CpAlias ).Interface.FullName"
+    "Orion.ReportsCustomProperties"                   = "$( $CpAlias ).Uri, $( $CpAlias ).Report.Title"
+    "Orion.SEUM.RecordingCustomProperties"            = "$( $CpAlias ).Recording.Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).Recording.DisplayName, $( $CpAlias ).Recording.Description"
+    "Orion.SEUM.TransactionCustomProperties"          = "$( $CpAlias ).Transaction.Uri + '/CustomProperties' AS [Uri], $( $CpAlias ).Transaction.DisplayName, $( $CpAlias ).Transaction.Description"
+    # Assumptions Made About URIs 
+    "Orion.SRM.FileShareCustomProperties"             = "$( $CpAlias ).Uri, $( $CpAlias ).FileShares.Name, $( $CpAlias ).FileShares.UserCaption, $( $CpAlias ).FileShares.Caption, $( $CpAlias ).FileShares.Description"
+    "Orion.SRM.LUNCustomProperties"                   = "$( $CpAlias ).Uri, $( $CpAlias ).LUNs.Name, $( $CpAlias ).LUNs.UserCaption, $( $CpAlias ).LUNs.Caption, $( $CpAlias ).LUNs.Description"
+    "Orion.SRM.PoolCustomProperties"                  = "$( $CpAlias ).Uri, $( $CpAlias ).Pools.Name, $( $CpAlias ).Pools.UserCaption, $( $CpAlias ).Pools.Caption, $( $CpAlias ).Pools.Description"
+    "Orion.SRM.ProviderCustomProperties"              = "$( $CpAlias ).Uri, $( $CpAlias ).Providers.Name, $( $CpAlias ).Providers.UserCaption, $( $CpAlias ).Providers.Caption, $( $CpAlias ).Providers.Description"
+    "Orion.SRM.StorageArrayCustomProperties"          = "$( $CpAlias ).Uri, $( $CpAlias ).StorageArrays.Name, $( $CpAlias ).StorageArrays.UserCaption, $( $CpAlias ).StorageArrays.Caption, $( $CpAlias ).StorageArrays.Description"
+    "Orion.SRM.VolumeCustomProperties"                = "$( $CpAlias ).Uri, $( $CpAlias ).Volumes.Name, $( $CpAlias ).Volumes.UserCaption, $( $CpAlias ).Volumes.Caption, $( $CpAlias ).Volumes.Description"
+    "Orion.VIM.DataCentersCustomProperties"           = "$( $CpAlias ).Uri, $( $CpAlias ).DataCenter.Name, $( $CpAlias ).DataCenter.Description"
+    # Yet to do
+    # Orion.VIM.DatastoresCustomProperties
+    # Orion.VIM.HostsCustomProperties
+    # Orion.VIM.VirtualMachinesCustomProperties
+    "Orion.VolumesCustomProperties"                   = "$( $CpAlias ).Uri, $( $CpAlias ).Volume.Node.Caption AS [Node], $( $CpAlias ).Volume.Description, $( $CpAlias ).Volume.VolumeType"
+
+    # Known Bad Linkage
+    #"Orion.SRM.StorageControllerCustomProperties"     = "$( $CpAlias ).Uri, $( $CpAlias ).StorageControllers.Name, $( $CpAlias ).StorageControllers.UserCaption, $( $CpAlias ).StorageControllers.Caption, $( $CpAlias ).StorageControllers.Description"
+    #"Orion.SRM.StorageControllerPortCustomProperties" = "$( $CpAlias ).Uri, $( $CpAlias ).StorageControllerPorts.Name, $( $CpAlias ).StorageControllerPorts.DisplayName, $( $CpAlias ).StorageControllerPorts.Description"
+    #"Orion.VIM.ClustersCustomProperties"              = "$( $CpAlias ).Uri, $( $CpAlias ).Cluster.Name,  $( $CpAlias ).Cluster.Caption, $( $CpAlias ).Cluster.Description"
 }
 
 # Some of the queries would benefit from filtering off some information
@@ -112,6 +131,9 @@ $OrderByClauses = @{
     "Orion.NPM.InterfacesCustomProperties"      = "ORDER BY $( $CpAlias ).Interface.FullName"
     "Orion.ReportsCustomProperties"             = "ORDER BY $( $CpAlias ).Report.Title"
     "Orion.SEUM.RecordingCustomProperties"      = "ORDER BY $( $CpAlias ).Recording.DisplayName"
+    "Orion.SEUM.TransactionCustomProperties"    = "ORDER BY $( $CpAlias ).Transaction.DisplayName"
+    "Orion.SRM.FileShareCustomProperties"       = "ORDER BY $( $CpAlias ).FileShares.DisplayName"
+    "Orion.SRM.LUNCustomProperties"             = "ORDER BY $( $CpAlias ).LUNs.DisplayName"
 }
 #endregion Identifying Details/Filters/Sorting
 
@@ -134,9 +156,14 @@ ForEach ( $TargetEntity in $TargetEntities ) {
             Write-Host "Exporting $( $Results.Count) record(s) from $TargetEntity to '$( $ExportPath )\$( $TargetEntity ).csv"
             $Results | Export-Csv -Path ( Join-Path -Path $ExportPath -ChildPath "$( $TargetEntity ).csv" ) -Force -Confirm:$false -NoTypeInformation
         }
+        else {
+            Write-Warning -Message "No entries found for Custom Properties for '$TargetEntity'"
+            "No entries found for Custom Properties for '$TargetEntity'" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $ExecutionStartTime ).log" ) -Append
+            "SWQL EXECUTING: $CpQuery" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $ExecutionStartTime ).log" ) -Append
+        }
     }
     else {
-        "No 'Default' Custom Properties are defined for '$TargetEntity'" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $ExecutionStartTime ).log" ) -Append
         Write-Error -Message "No 'Default' Custom Properties are defined for '$TargetEntity'" -RecommendedAction "Update the script to fix it"
+        "No 'Default' Custom Properties are defined for '$TargetEntity'" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $ExecutionStartTime ).log" ) -Append
     }
 }
