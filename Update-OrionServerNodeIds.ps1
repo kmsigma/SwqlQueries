@@ -38,7 +38,8 @@ if ( $MissingNodeIds ) {
             $Title = "Update Orion.Servers Entry"
             $Message = "Do you want to update entry for '$( $MissingNodeId.HostName )' in Orion.OrionServers with NodeID: $( $PossibleMatches.NodeID )?"
             $Response = $Host.Ui.PromptForChoice($Title, $Message, $Choices, 1)
-            if ( $Response -eq "Y" ) {
+            # Check to see if we said "Yes" (Response 0)
+            if ( $Response -eq 0 ) {
                 Write-Host "We'd run the update now" -ForegroundColor Green
             }
             else {
@@ -61,7 +62,7 @@ if ( $MissingNodeIds ) {
                 $Response = Read-Host -Prompt "or enter 'S' to skip"
                 $ResponseOk = $Response -in ( $PossibleMatches.NodeID ) -or $Response -eq 's'
             } until ( $ResponseOk )
-            if ( $Response -ne 's' ) {
+            if ( $Response.ToLower() -ne 's' ) {
                 Write-Host "We'd run the update now" -ForegroundColor Green
             }
             else {
