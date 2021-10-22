@@ -41,9 +41,11 @@ if ( $MissingNodeIds ) {
             # Check to see if we said "Yes" (Response 0)
             if ( $Response -eq 0 ) {
                 Write-Host "We'd run the update now" -ForegroundColor Green
+                Write-Host 'Command Code:        Set-SwisObject -SwisConnection $SwisConnection -Uri $( $MissingNodeId.Uri ) -Properties @{ NodeId = $PossibleMatches.NodeID }' -ForegroundColor Green
+                Write-Host "Command that's sent: Set-SwisObject -SwisConnection `$SwisConnection -Uri $( $MissingNodeId.Uri ) -Properties `@{ NodeId = $( $PossibleMatches.NodeID ) }" -ForegroundColor Green
             }
             else {
-                Write-Host "I guess not." -ForegroundColor Red
+                Write-Host "I guess not you aren't interested in doing the update" -ForegroundColor Red
             }
         }
         elseif ( $PossibleMatches.Count -gt 1 ) {
@@ -64,6 +66,8 @@ if ( $MissingNodeIds ) {
             } until ( $ResponseOk )
             if ( $Response.ToLower() -ne 's' ) {
                 Write-Host "We'd run the update now" -ForegroundColor Green
+                Write-Host 'Command Code:        Set-SwisObject -SwisConnection $SwisConnection -Uri $( $MissingNodeId.Uri ) -Properties @{ NodeId = $Response }' -ForegroundColor Green
+                Write-Host "Command that's sent: Set-SwisObject -SwisConnection `$SwisConnection -Uri $( $MissingNodeId.Uri ) -Properties `@{ NodeId = $Response }" -ForegroundColor Green
             }
             else {
                 Write-Host "I guess not." -ForegroundColor Red
