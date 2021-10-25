@@ -18,26 +18,30 @@ if ( $args ) {
     For ( $i = 1; $i -lt $args.Count; $i++ ) {
         $excludeSubjects += $args[$i]
     }
+    $LocalCreds = Get-Credential -UserName ${Username}
+    $IpAddress = ${IP}
 } else {
     $VerbosePreference = "Continue"
     Write-Verbose -Message "Executing in 'Test' Mode with static options"
     $intThreshold = 60 # days
     $excludeSubjects = "Verisign", "Microsoft"
+    $LocalCreds = Get-Credential
+    $IpAddress = "192.168.21.101"
+
     $testMode = $true
 }
 
-
-
-Write-Verbose -Message "Setting Deadline date to: $( ( Get-Date ).AddDays($intThreshold ) )"
-$dateDeadline = ( Get-Date ).AddDays($intThreshold)
-
 # Lookup the target server name from DNS
-$HostNames = [System.Net.Dns]::GetHostByAddress("192.168.21.65")
+$HostNames = [System.Net.Dns]::GetHostByAddress($IpAddress)
 if ( $HostNames ) {
     # Use the first entry from hostnames, and use only the computername (strip off everything after the first .)
     $TargetServer = $HostNames[0].HostName.Split(".")[0].ToUpper()
 }
 
+Write-Verbose -Message "Setting Deadline date to: $( ( Get-Date ).AddDays($intThreshold ) )"
+$dateDeadline = ( Get-Date ).AddDays($intThreshold)
+
+# Currently setup to run on Orion server against a target server (Invoke-Command)
 $objStore = Invoke-Command -ComputerName $TargetServer -Credential $LocalCreds -ScriptBlock { Get-ChildItem -Path 'Cert:\LocalMachine\Root' }
 # Add a member that'll present the name in an easier way
 $objStore | Add-Member -MemberType ScriptProperty -Name "Name" -Value { ( $this.Subject.Split(",") | ForEach-Object { $_.Trim().Split("=")[1] } ) -join ", " } -Force
