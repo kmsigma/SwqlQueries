@@ -1,0 +1,161 @@
+<html>
+
+<head>
+    <title>[Monitoring Event] - ${N=SwisEntity;M=Caption} is ${N=SwisEntity;M=Status}</title>
+    <style type="text/css">
+        .alert_header {
+            font-family: "Calibri";
+            font-size: 16pt;
+            color: navy;
+            text-align: left;
+            font-weight: bold;
+            vertical-align: center;
+        }
+
+        .alert_description {
+            font-family: "Calibri";
+            font-size: 14pt;
+            color: gray;
+            text-align: left;
+            font-weight: bold;
+            vertical-align: center;
+        }
+
+        .alert_details {
+            font-family: "Calibri";
+            font-size: 10pt;
+            color: gray;
+            text-align: left;
+            font-weight: bold;
+            vertical-align: center;
+        }
+
+        th {
+            font-family: "Calibri";
+            font-size: 12pt;
+            font-weight: bold;
+            color: white;
+            background-color: #FF0000;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        td {
+            font-family: "Calibri";
+            font-size: 12pt;
+            font-weight: normal;
+            color: #04c9d7;
+            background-color: #eeeeee;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .acknowledge-button {
+            font-family: "Calibri";
+            visibility: visible;
+            background: transparent;
+            text-decoration: none;
+            outline: 0;
+            overflow: hidden;
+            text-align: center;
+            transition: 300ms;
+            height: 40px;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 36px;
+            box-sizing: border-box;
+            border-radius: 0;
+            padding: 5px 10px;
+            margin: 15px;
+            background-color: navy;
+            border: solid 2px navy;
+            color: #fff;
+            box-shadow: none;
+            text-align: center;
+        }
+
+        .alert-button {
+            font-family: "Calibri";
+            visibility: visible;
+            background: transparent;
+            text-decoration: none;
+            outline: 0;
+            overflow: hidden;
+            text-align: center;
+            transition: 300ms;
+            height: 40px;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 36px;
+            box-sizing: border-box;
+            border-radius: 0;
+            padding: 5px 10px;
+            margin: 15px;
+            background-color: #333;
+            border: solid 2px #333;
+            color: #fff;
+            box-shadow: none;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <table style="border: none;" cellspacing="0" cellpadding="1" width="792">
+        <tr>
+            <td>
+                <table style="border: none;" cellspacing="0" cellpadding="0" width="792">
+                    <tr>
+                        <td class="alert_header">${N=SwisEntity;M=Caption} is ${N=SwisEntity;M=Status}</td>
+                    </tr>
+                    <tr>
+                        <td class="alert_description">${N=SwisEntity;M=Caption} is ${N=SwisEntity;M=Status}</td>
+                    </tr>
+                    <tr>
+                        <td class="alert_details">Alert Name: ${N=Alerting;M=AlertName} / Trigger Time:
+                            ${N=Alerting;M=AlertTriggerTime;F=DateTime}</td>
+                    </tr>
+                </table>
+                <table style="border:1px solid #003366;" cellspacing="0" cellpadding="1" width="792">
+                    <tr>
+                        <td>
+                            <table style="border: none;" cellspacing="0" cellpadding="3" width="100%">
+                                <tr>
+                                    <th>Node</th>
+                                    <td><img src="${N=SWQL;M=SELECT SettingValue FROM Orion.WebSettings WHERE SettingName = 'Web-OrionWebServerAddress'}/Orion/images/StatusIcons/${N=SwisEntity;M=StatusLED}"
+                                            alt="${N=SwisEntity;M=StatusDescription}" width="16" height="16"></td>
+                                    <td><a
+                                            href="${N=SWQL;M=SELECT SettingValue FROM Orion.WebSettings WHERE SettingName = 'Web-OrionWebServerAddress'}/Orion/NetPerfMon/NodeDetails.aspx?NetObject=N:${N=SwisEntity;M=NodeID}">${N=SwisEntity;M=Caption}
+                                            / ${N=SwisEntity;M=IP_Address}</a></td>
+                                </tr>
+                                <tr>
+                                    <th>Node Status</th>
+                                    <td>&nbsp;</td>
+                                    <td>${N=SwisEntity;M=Status}</td>
+                                </tr>
+                                <tr>
+                                    <th>Application</th>
+                                    <td>&nbsp;</td>
+                                    <td>${N=SwisEntity;M=CustomProperties.PrimaryApplication}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td class="alert_details">Alert Details: ${N=Alerting;M=AlertDescription}</td>
+        </tr>
+        <tr>
+            <td class="alert_details">
+                <div style="text-align: center;"><a href="${N=Alerting;M=AcknowledgeUrl}"
+                        class="acknowledge-button">Acknowledge this Alert</a>
+                    <a href="${N=Alerting;M=AlertDetailsUrl}" class="alert-button">Alert Details</a>
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>
