@@ -11,14 +11,20 @@ FROM Orion.AlertConfigurations
 ORDER BY AlertID
 "@
 
-$SwisHost = "kmsorion01v.kmsigma.local" # if running on the Orion server, you can use localhost
-if ( -not ( $SwisCred ) ) {
-    $SwisCred = Get-Credential -Message "Enter Orion credentials for '$SwisHost'"
-}
+if ( -not ( $SwisConnection ) ) {
+    $SwisHost = Read-Host -Prompt "Provide the IP or FQDN of your Orion server"
 
+    if ( -not ( $SwisCreds ) ) {
+        $SwisCreds = Get-Credential -Message "Enter your Orion credentials for $SwisHost"
+    }
+
+    if ( $SwisHost -and $SwisCreds ) {
+        $SwisConnection = Connect-Swis -Hostname $SwisHost -Credential $SwisCreds
+    }
+}
 $ExportPath = ".\AlertExports\"
 
-$SwisConnection = Connect-Swis -Hostname $SwisHost -Credential $SwisCred
+$SwisConnection = Connect-Swis -Hostname $SwisHost -Credential $SwisCreds
 $AlertList = Get-SwisData -SwisConnection $SwisConnection -Query $Swql
 
 # Check to see if the Export Path exists.  If not, then create it.
@@ -46,7 +52,7 @@ For ( $i = 0; $i -lt $AlertList.Count; $i++ ) {
         # Pull the alert definition and then just select the actual XML
         $Export = Invoke-SwisVerb -SwisConnection $SwisConnection -EntityName "Orion.AlertConfigurations" -Verb "Export" -Arguments $ExportArguments -ErrorAction SilentlyContinue
         if ( $Export ) {
-            $RawXml = $Export.'#text'
+            $RawXml = $Export.InnerText
             ( [xml]$RawXml ).Save($FilePath)
         }
     }
