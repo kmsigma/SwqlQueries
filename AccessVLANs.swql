@@ -1,0 +1,31 @@
+-- The below looks for all interfaces with access VLANs assigned to all devices (no filter on Node Type)
+-- It includes a check for a matching VLAN and displays a Red Critical icon, otherwise it shows a Green Check
+SELECT [PortMap].Interface.Node.DisplayName AS [Node]
+      , [PortMap].Interface.Node.DetailsUrl AS [_LinkFor_Node]
+      , CONCAT('/NetPerfMon/Images/Vendors/', [PortMap].Interface.Node.VendorInfo.Icon) AS [_IconFor_Node]
+      , [PortMap].Interface.IfName AS [Interface]
+      , [PortMap].Interface.DetailsUrl AS [_LinkFor_Interface]
+      , CONCAT('/NetPerfMon/images/Interfaces/', [PortMap].Interface.Icon) AS [_IconFor_Interface]
+      , [PortMap].VlanId AS [Vlan]
+      , CASE [PortMap].VlanID
+          WHEN 2001 THEN '/Orion/images/ActiveAlerts/Critical.png'
+          ELSE '/Orion/images/ActiveAlerts/Check.png'
+        END AS [_IconFor_Vlan]
+      , [PortMap].NodeVlan.VlanName AS [Vlan Name]
+FROM Orion.NodePortInterfaceMap AS [PortMap]
+WHERE [PortMap].Interface.IfName IS NOT NULL
+  AND [PortMap].VlanId > 0
+  -- A PortType of 1 indicates an access port (not a trunk or other)
+  AND [PortMap].PortType = 1
+  -- Uncomment the below to use the Search SWQL Query
+  -- BEGIN SEARCH QUERY
+--  AND ( [PortMap].Interface.Node.DisplayName LIKE '%${SEARCH_STRING}%'
+--     OR [PortMap].Interface.IfName LIKE '%${SEARCH_STRING}%'
+--     OR [PortMap].VlanId = '${SEARCH_STRING}'
+--     OR [PortMap].NodeVlan.VlanName  LIKE '%${SEARCH_STRING}%'
+--     )
+  -- END SEARCH QUERY
+  -- If you want to place this on a Node Details page and have it automatically filter for interfaces on that Node, uncomment the following line
+--  AND [PortMap].NodeID = ${NodeID}
+ORDER BY [PortMap].Interface.Node.DisplayName
+       , [PortMap].Interface.IfName

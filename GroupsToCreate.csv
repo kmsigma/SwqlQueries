@@ -1,0 +1,8 @@
+url,name,status,region,facility,physical_address,latitude,longitude
+https://netbox_server.domain.com/ipshack/api/dcim/sites/41/?format=json,A1111,Active,Zone 1 - South,A1111 SiteName Here,"2111, some road, somewhere, ON, H0H 0H0",42.54021818,-77.6806524
+https://netbox_server.domain.com/ipshack/api/dcim/sites/308/?format=json,A1112,Active,Zone 1 - South,A1112 SiteName Here,"2112, some road, somewhere, ON, H0H 0H0",41.0896473,-80.7439152
+https://netbox_server.domain.com/ipshack/api/dcim/sites/1187/?format=json,A1113,Active,Zone 1 - South,A1113 SiteName Here,"2113, some road, somewhere, ON, H0H 0H0",42.07040273,-78.2282826
+https://netbox_server.domain.com/ipshack/api/dcim/sites/1432/?format=json,A1114,Active,Zone 1 - South,A1114 SiteName Here,"2114, some road, somewhere, ON, H0H 0H0",43.934241,-72.95332688
+https://netbox_server.domain.com/ipshack/api/dcim/sites/1445/?format=json,A1115,Active,Zone 1 - South,A1115 SiteName Here,"2115, some road, somewhere, ON, H0H 0H0",42.34154145,-78.42683355
+https://netbox_server.domain.com/ipshack/api/dcim/sites/1446/?format=json,A1116,Active,Zone 1 - South,A1116 SiteName Here,"2116, some road, somewhere, ON, H0H 0H0",42.6240204,-79.63149968
+https://netbox_server.domain.com/ipshack/api/dcim/sites/1482/?format=json,A1117,Active,Zone 1 - South,A1117 SiteName Here,"2117, some road, somewhere, ON, H0H 0H0",42.17265,-77.868375

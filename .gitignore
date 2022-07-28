@@ -3,3 +3,5 @@
 /CustomPropertyExports/*
 /DeviceTemplateExports/*
 /ModernDashboards/*
+/AgentMgmt/ActiveToPassive*
+/AgentMgmt/RegisterPassiveAgents.ps1
