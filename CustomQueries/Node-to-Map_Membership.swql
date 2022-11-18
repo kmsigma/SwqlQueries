@@ -1,0 +1,62 @@
+--------------------------------------------------------------
+--  Custom Query Widget for Map Membership (Search Capable)
+--------------------------------------------------------------
+--  Includes all nodes and what maps they are on (even "none")
+--  If you want to enable the search, remove the double-dashes
+--  from the WHERE block near the end
+--------------------------------------------------------------
+--  Author: KMSigma (https://thwack.solarwinds.com/members/kmsigma)
+--------------------------------------------------------------
+-- Inspiration
+--    Original Request: https://thwack.solarwinds.com/product-forums/the-orion-platform/f/orion-sdk/97035/report-or-widget-to-identify-any-nodes-not-included-in-any-map/
+--    Related Report: https://thwack.solarwinds.com/content-exchange/the-orion-platform/m/reports/3426
+--------------------------------------------------------------
+-- Version History:
+--     1.0.0 / 2022-11-18 - Initial Upload
+--------------------------------------------------------------
+
+SELECT CASE 
+          WHEN [Members].Container.DisplayName IS NULL
+               THEN '[None]'
+          ELSE [Members].Container.DisplayName
+          END AS [Map]
+     , CASE 
+          WHEN [Members].Container.DetailsUrl IS NULL
+               THEN '#'
+          ELSE [Members].Container.DetailsUrl
+          END AS [_LinkFor_Map]
+     , [Nodes].NodeID AS [Node ID]
+     , [Nodes].Caption AS [Node]
+     , [Nodes].IPAddress AS [IP]
+     , [Nodes].DetailsUrl AS [_LinkFor_Node]
+     , [Nodes].NodeDescription AS [Description]
+     , [Nodes].VendorInfo.DisplayName AS [Vendor]
+     , CONCAT (
+          '/NetPerfMon/Images/Vendors/'
+          , [Nodes].VendorInfo.Icon
+          ) AS [_IconFor_Vendor]
+     , [Nodes].StatusDescription AS [Status]
+     , CONCAT (
+          '/Orion/images/StatusIcons/Small-'
+          , [Nodes].StatusIcon
+          ) AS [_IconFor_Status]
+     , [Nodes].MachineType AS [Machine Type]
+-- This is how you include Node Custom Properties
+-- , [Nodes].CustomProperties.Comments
+FROM Orion.Nodes AS [Nodes]
+LEFT JOIN Orion.ContainerMembers AS [Members] ON [Members].Container.Name LIKE 'MAPS-________-____-____-____-____________'
+     AND [Members].MemberEntityType = 'Orion.Nodes'
+     AND [Members].MemberPrimaryID = [Nodes].NodeID
+-- Search Options:
+-- Uncomment below block to enable search capabilities
+-- SEARCH BLOCK: BEGIN
+--WHERE (
+--          [Members].Container.DisplayName LIKE '%${SEARCH_STRING}%'
+--          OR [Nodes].Caption LIKE '%${SEARCH_STRING}%'
+--          OR [Nodes].NodeDescription LIKE '%${SEARCH_STRING}%'
+--          OR [Nodes].VendorInfo.DisplayName LIKE '%${SEARCH_STRING}%'
+--          OR [Nodes].MachineType LIKE '%${SEARCH_STRING}%'
+--          )
+-- SEARCH BLOCK: END
+ORDER BY [Members].Container.DisplayName
+     , [Nodes].Caption
