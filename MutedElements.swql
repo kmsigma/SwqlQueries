@@ -1,0 +1,19 @@
+SELECT [Entities].DisplayName AS [Element]
+     , [Entities].DetailsUrl AS [_LinkFor_Element]
+     , [Entities].Status
+     , [Entities].StatusDescription
+     , CASE 
+          WHEN [Entities].InstanceType = 'Orion.Nodes'
+               THEN 'Node'
+          WHEN [Entities].InstanceType LIKE 'Orion.APM.%'
+               THEN 'Application'
+          WHEN [Entities].InstanceType = 'Orion.NPM.Interfaces'
+               THEN 'Interface'
+          WHEN [Entities].InstanceType = 'Orion.Groups'
+               THEN 'Group'
+          ELSE [Entities].InstanceType
+          END AS [ElementType]
+     , [MutedAlerts].SuppressFrom
+     , [MutedAlerts].SuppressUntil
+FROM Orion.AlertSuppression AS [MutedAlerts]
+LEFT JOIN System.ManagedEntity AS [Entities] ON [MutedAlerts].EntityUri = [Entities].Uri

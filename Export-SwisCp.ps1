@@ -2,6 +2,134 @@
 #Requires -Module @{ ModuleName = 'SwisPowerShell'; ModuleVersion = '3.0.0' }
 
 
+<#
+Notes:
+
+When exporting from the web console, there are the following nuances:
+Each CP has an additional SHA1(<CustomPropertyName>)
+
+Node Custom Properties:
+ Includes Caption and IP_Address
+
+Alert Custom Properties:
+ Includes Name
+
+
+
+#>
+#region ConvertTo-Hash function
+<#
+.Synopsis
+   Convert a string to a hash value
+.DESCRIPTION
+   The `ConvertTo-Hash` does a thing
+.EXAMPLE
+   Convert a single string using SHA256 (the default)
+
+   ConvertTo-Hash -String "Hello world" -Algorithm sha256       
+
+   Algorithm Hash                                                             String     
+   --------- ----                                                             ------     
+   SHA256    64EC88CA00B268E5BA1A35678A1B5316D212F4F366B2477232534A8AECA37F3C Hello world
+.EXAMPLE
+   Convert a single string using MD5 and return only the hash
+   
+   ConvertTo-Hash -String "foo bar" -Algorithm MD5 -OnlyHash
+
+   327B6F07435811239BC47E1544353273
+.EXAMPLE
+   Convert multiple strings using SHA1
+   
+   ConvertTo-Hash -string "foo", "bar", "hello", "world" -Algorithm SHA1
+
+   Algorithm Hash                                     String
+   --------- ----                                     ------
+   SHA1      0BEEC7B5EA3F0FDBC95D0DD47F3C5BC275DA8A33 foo   
+   SHA1      62CDB7020FF920E5AA642C3D4066950DD1F01F4D bar   
+   SHA1      AAF4C61DDCC5E8A2DABEDE0F3B482CD9AEA9434D hello 
+   SHA1      7C211433F02071597741E6FF5A8EA34789ABBF43 world
+.INPUTS
+   string or strings
+.OUTPUTS
+   PowerShell object or string with the hash
+.NOTES
+   Completely and shamelessly stolen from Microsoft's example with only a few variable name tweaks
+   URL: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-filehash?view=powershell-7.2&WT.mc_id=ps-gethelp#example-4-compute-the-hash-of-a-string
+#>
+function ConvertTo-Hash
+{
+    [CmdletBinding(DefaultParameterSetName='Default', 
+                  SupportsShouldProcess=$false, 
+                  PositionalBinding=$true,
+                  HelpUri = 'https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-filehash?view=powershell-7.2&WT.mc_id=ps-gethelp#example-4-compute-the-hash-of-a-string')]
+    [Alias()]
+    [OutputType([String])]
+    Param
+    (
+        # The string (or strings) to encode
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true, 
+                   ValueFromRemainingArguments=$false, 
+                   ParameterSetName='Default',
+                   Position=0)]
+        [ValidateNotNullOrEmpty()]
+        [Alias("p1")] 
+        [string[]]$String,
+
+        # Specifies the cryptographic hash function to use for computing the hash value of the contents of the specified file or stream. A cryptographic hash function has the property that it is infeasible to find two different files with the same hash value. Hash functions are commonly used with digital signatures and for data integrity. The acceptable values for this parameter are:
+        # 
+        # SHA1
+        # SHA256
+        # SHA384
+        # SHA512
+        # MD5
+        #
+        # If no value is specified, or if the parameter is omitted, the default value is SHA256.
+        # 
+        # For security reasons, MD5 and SHA1, which are no longer considered secure, should only be used for simple change validation, and should not be used to generate hash values for files that require protection from attack or tampering.
+        [Parameter(ParameterSetName='Default')]
+        [AllowNull()]
+        [ValidateSet('SHA1', 'SHA256', 'SHA384', 'SHA512', 'MD5')]
+        [string]$Algorithm = 'SHA256',
+
+        # Return only the hash of the informaiton instead of the full object
+        [Parameter(ParameterSetName='Default')]
+        [switch]$OnlyHash
+
+    )
+
+    Begin
+    {
+        # Nothing to see here...
+    }
+    Process
+    {
+        ForEach ( $s in $String ) {
+            $StringStream = [System.IO.MemoryStream]::new()
+            $StreamWriter = [System.IO.StreamWriter]::new($stringStream)
+            $StreamWriter.write($s)
+            $StreamWriter.Flush()
+            $StringStream.Position = 0
+            if ( $OnlyHash ) {
+                Get-FileHash -InputStream $StringStream -Algorithm $Algorithm | Select-Object -ExpandProperty Hash
+            }
+            else {
+                Get-FileHash -InputStream $StringStream -Algorithm $Algorithm | Select-Object -Property Algorithm, Hash, @{ Name = 'String'; Expression = { $s } }
+            }
+
+        }
+
+    }
+    End
+    {
+        # Nothing to see here either...
+    }
+}
+#endregion ConvertTo-Hash function
+
+
+
 $ExecutionStartTime = ( Get-Date -Format 's' ).Replace(":", "-")
 $ExecutionStartTime = ( Get-Date ).ToString("yyyy-MM-dd")
 
@@ -22,14 +150,7 @@ Entities of type:
 
 #>
 
-# Select the location where we want to store the exported files
-$ExportPath = ".\CustomPropertyExports"
-#region Quick Check to see if the folder exists, and if not, create it
-if ( -not ( Test-Path -Path $ExportPath -ErrorAction SilentlyContinue ) ) {
-    New-Item -Path $ExportPath -ItemType Directory | Out-Null
-}
-#endregion Quick Check to see if the folder exists, and if not, create it
-
+#region Build the SolarWinds Information Service connection
 # Build the connection to SolarWinds Orion
 # This example prompts for the server name/IP and then asks for the username/password combo
 if ( -not $SwisConnection ) {
@@ -42,6 +163,18 @@ if ( -not $SwisConnection ) {
 }
 # Certificate authentication assumes you are running on the local Orion server, if not, use a different authentication method
 #$SwisConnection = Connect-Swis -Hostname 'kmsorion01v.kmsigma.local' -Certificate
+#endregion Build the SolarWinds Information Service connection
+
+
+# Select the location where we want to store the exported files
+$ExportPath = ".\CustomPropertyExports"
+#region Quick Check to see if the folder exists, and if not, create it
+if ( -not ( Test-Path -Path $ExportPath -ErrorAction SilentlyContinue ) ) {
+    New-Item -Path $ExportPath -ItemType Directory | Out-Null
+}
+#endregion Quick Check to see if the folder exists, and if not, create it
+
+
 
 
 # Define a global 'alias' for the Custom Property Lookups
@@ -60,11 +193,13 @@ FROM Orion.CustomProperty AS $( $CpAlias )
 ORDER BY $( $CpAlias ).TargetEntity, $( $CpAlias ).Field
 "@
 
+$SwisHost = $SwisConnection.ChannelFactory.Endpoint.address.Uri.Host
+
 # Run the query to get the list of all Custom Properties
 $ListOfCps = Get-SwisData -SwisConnection $SwisConnection -Query $SwqlCpList
 
 # Export all of the CP's to have a record
-$ListOfCps | Export-Csv -Path ( Join-Path -Path $ExportPath -ChildPath "_CustomProperties.csv" ) -Force -Confirm:$false -NoTypeInformation
+$ListOfCps | Export-Csv -Path ( Join-Path -Path $ExportPath -ChildPath "$( $SwisHost )_CustomProperties.csv" ) -Force -Confirm:$false -NoTypeInformation
 
 # Let's get the list of distinct target entities and just store they as an array of strings
 $TargetEntities = $ListOfCps | Select-Object -Property TargetEntity -Unique | Select-Object -ExpandProperty TargetEntity | Sort-Object
@@ -158,12 +293,12 @@ ForEach ( $TargetEntity in $TargetEntities ) {
         }
         else {
             Write-Warning -Message "No entries found for Custom Properties for '$TargetEntity'"
-            "No entries found for Custom Properties for '$TargetEntity'" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $ExecutionStartTime ).log" ) -Append
-            "SWQL EXECUTING: $CpQuery" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $ExecutionStartTime ).log" ) -Append
+            "No entries found for Custom Properties for '$TargetEntity'" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $SwisHost )_$( $ExecutionStartTime ).log" ) -Append
+            "SWQL EXECUTING: $CpQuery" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error$( $SwisHost )__$( $ExecutionStartTime ).log" ) -Append
         }
     }
     else {
         Write-Error -Message "No 'Default' Custom Properties are defined for '$TargetEntity'" -RecommendedAction "Update the script to fix it"
-        "No 'Default' Custom Properties are defined for '$TargetEntity'" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $ExecutionStartTime ).log" ) -Append
+        "No 'Default' Custom Properties are defined for '$TargetEntity'" | Out-File -FilePath ( Join-Path -Path $ExportPath -ChildPath "Error_$( $SwisHost )_$( $ExecutionStartTime ).log" ) -Append
     }
 }
