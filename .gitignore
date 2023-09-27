@@ -6,3 +6,4 @@
 /AgentMgmt/ActiveToPassive*
 /AgentMgmt/RegisterPassiveAgents.ps1
 /_scratch/*
+/ExportTests/*
